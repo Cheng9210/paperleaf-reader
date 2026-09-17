@@ -1,0 +1,1 @@
+{"name":"paperleaf-reading-desk","private":true,"type":"module","scripts":{"dev":"node scripts/serve.mjs","test":"node --test tests/*.test.mjs","prepare-assets":"node scripts/prepare-assets.mjs"},"dependencies":{"pdfjs-dist":"5.4.624","pdf-lib":"1.17.1"}}

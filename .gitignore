@@ -1,0 +1,6 @@
+node_modules/
+.pnpm-store/
+.sites-runtime/
+artifacts/
+tmp/
+*.zip
