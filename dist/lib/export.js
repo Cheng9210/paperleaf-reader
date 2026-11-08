@@ -1,4 +1,27 @@
+import {hexRgb} from './core.js';
 function displayGeometry(page){const b=page.getCropBox(),r=((page.getRotation().angle%360)+360)%360;return{width:r%180?b.height:b.width,height:r%180?b.width:b.height,rotation:r,point(x,y){if(r===90)return{x:b.x+y,y:b.y+x};if(r===180)return{x:b.x+b.width-x,y:b.y+y};if(r===270)return{x:b.x+b.width-y,y:b.y+b.height-x};return{x:b.x+x,y:b.y+b.height-y};}};}
-export async function exportAnnotatedPdf(bytes,annotations,{PDFLib=window.PDFLib}={}){const{PDFDocument,rgb,degrees}=PDFLib;const doc=await PDFDocument.load(bytes.slice());for(const a of annotations){if(a.page<1||a.page>doc.getPageCount())continue;const page=doc.getPage(a.page-1),g=displayGeometry(page);for(const r of a.rects||[]){const origin=g.point(r.x*g.width,(r.y+r.height)*g.height);const box={...origin,width:r.width*g.width,height:r.height*g.height,rotate:degrees(g.rotation)};if(a.kind==='highlight')page.drawRectangle({...box,color:rgb(.94,.8,.32),opacity:.36});else if(a.kind==='comment'&&a.image){const image=await doc.embedPng(a.image);page.drawImage(image,box);}}}return doc.save();}
-export async function createCommentStamp(text,width){await document.fonts.ready;const scale=3,fontSize=11,lineHeight=16,padding=9;const canvas=document.createElement('canvas');let ctx=canvas.getContext('2d');ctx.font=`${fontSize}px "Noto Sans TC",sans-serif`;const lines=[];for(const paragraph of text.split('\n')){let line='';for(const ch of paragraph){if(line&&ctx.measureText(line+ch).width>width-padding*2){lines.push(line);line=ch;}else line+=ch;}lines.push(line);}const height=padding*2+Math.max(1,lines.length)*lineHeight;canvas.width=Math.ceil(width*scale);canvas.height=Math.ceil(height*scale);ctx=canvas.getContext('2d');ctx.scale(scale,scale);ctx.fillStyle='#fff4bf';ctx.fillRect(0,0,width,height);ctx.strokeStyle='#dfc867';ctx.strokeRect(.5,.5,width-1,height-1);ctx.fillStyle='#655526';ctx.font=`${fontSize}px "Noto Sans TC",sans-serif`;ctx.textBaseline='top';lines.forEach((line,i)=>ctx.fillText(line,padding,padding+i*lineHeight));return{image:canvas.toDataURL('image/png'),height};}
-export function downloadFile(bytes,name,type){const url=URL.createObjectURL(new Blob([bytes],{type}));const a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}
+export async function exportAnnotatedPdf(bytes,annotations,{PDFLib=window.PDFLib}={}){
+  const{PDFDocument,rgb,degrees,BlendMode}=PDFLib,doc=await PDFDocument.load(bytes.slice());
+  for(const a of annotations){if(a.page<1||a.page>doc.getPageCount())continue;const page=doc.getPage(a.page-1),g=displayGeometry(page);
+    for(const r of a.rects||[]){
+      let height=r.height*g.height,image=null;
+      if(a.kind==='text'&&a.text.trim()){const stamp=await createTextStamp(a.text,r.width*g.width,a.fontSize,a.color);image=await doc.embedPng(stamp.image);height=stamp.height;}
+      else if(a.kind==='comment'&&a.image)image=await doc.embedPng(a.image);
+      const origin=g.point(r.x*g.width,r.y*g.height+height),box={...origin,width:r.width*g.width,height,rotate:degrees(g.rotation)};
+      if(a.kind==='highlight')page.drawRectangle({...box,color:rgb(...hexRgb(a.color)),opacity:1,blendMode:BlendMode.Multiply});
+      else if(image)page.drawImage(image,box);
+    }
+  }
+  return doc.save();
+}
+export async function createTextStamp(text,width,fontSize=14,color='#c03632'){
+  await document.fonts.ready;const scale=3,lineHeight=fontSize*1.25,canvas=document.createElement('canvas');
+  // Let the same browser text layout used by the editor decide line breaks.
+  const layout=document.createElement('div');layout.style.cssText=`position:fixed;left:-10000px;top:0;visibility:hidden;white-space:pre-wrap;overflow-wrap:anywhere;width:${width}px;font:${fontSize}px/1.25 "Paperleaf Noto Sans TC",sans-serif;letter-spacing:normal;padding:0;border:0`;
+  layout.textContent=text;document.body.append(layout);await document.fonts.load(`${fontSize}px "Paperleaf Noto Sans TC"`,text);
+  const lines=[];let previousTop=null;const range=document.createRange(),node=layout.firstChild;
+  for(let i=0;i<text.length;i++){range.setStart(node,i);range.setEnd(node,i+1);const rect=range.getBoundingClientRect();if(text[i]==='\n'){previousTop=null;continue;}if(previousTop===null||Math.abs(rect.top-previousTop)>.5){lines.push({text:'',top:Math.round((rect.top-layout.getBoundingClientRect().top)/lineHeight)*lineHeight});previousTop=rect.top;}lines.at(-1).text+=text[i];}
+  const height=Math.max(lineHeight,layout.getBoundingClientRect().height);layout.remove();canvas.width=Math.ceil(width*scale);canvas.height=Math.ceil(height*scale);const ctx=canvas.getContext('2d');ctx.scale(scale,scale);ctx.fillStyle=color;ctx.font=`${fontSize}px "Paperleaf Noto Sans TC",sans-serif`;ctx.textBaseline='alphabetic';const m=ctx.measureText('Mg'),ascent=m.fontBoundingBoxAscent||fontSize*.9,descent=m.fontBoundingBoxDescent||fontSize*.25,baseline=(lineHeight-ascent-descent)/2+ascent;
+  lines.forEach(line=>ctx.fillText(line.text,0,baseline+line.top));return{image:canvas.toDataURL('image/png'),height};
+}
+export function downloadFile(bytes,name,type){const url=URL.createObjectURL(new Blob([bytes],{type})),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}

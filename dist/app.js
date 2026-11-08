@@ -1,50 +1,132 @@
+import {initReadingModes} from './lib/reading-modes.js';
+import {AzureReader} from './lib/azure-reader.js';
+import {selectionParts} from './lib/pdf-text.js';
 import {hydrateIcons} from './lib/icons.js';
-import {loadPdf,PdfRenderer} from './lib/pdf.js';
-import {clamp,normalizedRect,shouldSpeak,documentKey,notesToMarkdown} from './lib/core.js';
+import {loadPdf} from './lib/pdf.js';
+import {ContinuousPdf} from './lib/continuous-pdf.js';
+import {clamp,normalizedRect,shouldSpeak,documentKey,notesToMarkdown,cleanSelectionRects,migrateAnnotations,moveAnnotation,textRectAt} from './lib/core.js';
 import {readDocument,saveDocument} from './lib/storage.js';
 import {renderNotebook,noteCount} from './lib/notes.js';
-import {renderTranslation,lookupDemo} from './lib/translation.js';
-import {exportAnnotatedPdf,createCommentStamp,downloadFile} from './lib/export.js';
+import {renderTranslation,alignTranslation,clearTranslationSelection} from './lib/translation.js';
+import {dismissCorrespondence} from './lib/selection-lifecycle.js';
+import {exportAnnotatedPdf,downloadFile} from './lib/export.js';
 
-const $=selector=>document.querySelector(selector);
-const state={doc:null,bytes:null,key:null,name:'Attention and Learning',demo:true,page:1,zoom:1,tool:'select',notes:{quotes:[]},annotations:[],history:[],selection:null,viewport:null,busy:false};
-const renderer=new PdfRenderer();let toastTimer,resizeTimer,loadSerial=0,pendingComment=null;
+const $=s=>document.querySelector(s);
+const state={doc:null,bytes:null,key:null,name:'',demo:true,page:1,tool:'select',notes:{quotes:[]},annotations:[],history:[],selection:null,selected:null,busy:false};
+let toastTimer,highlightTimer,loadSerial=0;
 hydrateIcons();
-function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').hidden=true,4800);}
-function persist(){if(!state.key)return;try{saveDocument(state.key,state);$('#save-status').innerHTML='<i class="status-dot"></i>已儲存於此瀏覽器';}catch{$('#save-status').textContent='儲存失敗，請匯出筆記';toast('瀏覽器無法儲存資料。請下載註記 PDF 與筆記，避免遺失。');}$('#notes-count').textContent=noteCount(state.notes);}
-function hideSelection(){state.selection=null;$('#selection-popover').hidden=true;}
-function setTool(tool){state.tool=tool;document.querySelectorAll('[data-tool]').forEach(el=>{const active=el.dataset.tool===tool;el.classList.toggle('active',active);el.setAttribute('aria-pressed',active);});$('#pdf-page').classList.toggle('comment-mode',tool==='comment');if(tool==='comment'){hideSelection();window.getSelection()?.removeAllRanges();toast('在原文頁面點一下，放置文字註解。');}}
-function drawAnnotations(){const layer=$('#annotation-layer');layer.replaceChildren();for(const a of state.annotations.filter(x=>x.page===state.page)){for(const r of a.rects){const el=document.createElement('button');el.type='button';el.className=a.kind==='highlight'?'highlight-mark':'comment-mark';el.dataset.annotation=a.id;el.setAttribute('aria-label',a.kind==='highlight'?'刪除此螢光筆重點':`註解：${a.text}。點擊以刪除，可復原。`);el.title=a.kind==='highlight'?'點擊移除重點（可復原）':`${a.text}\n點擊移除註解（可復原）`;Object.assign(el.style,{left:`${r.x*100}%`,top:`${r.y*100}%`,width:`${r.width*100}%`,height:`${r.height*100}%`});if(a.kind==='comment'){el.style.padding='0';el.style.border='0';const img=document.createElement('img');img.src=a.image;img.alt=a.text;img.style.cssText='width:100%;height:100%;display:block';el.append(img);}layer.append(el);}}document.querySelector('[data-action="undo"]').disabled=state.history.length===0;}
-function changeAnnotations(next){state.history.push(structuredClone(state.annotations));if(state.history.length>50)state.history.shift();state.annotations=next;drawAnnotations();persist();}
-async function renderPage(){if(!state.doc)return;hideSelection();$('#loading').hidden=false;const width=$('#pdf-scroll').clientWidth;if(width<30)return;const padding=parseFloat(getComputedStyle($('#pdf-scroll')).paddingLeft)*2;try{const result=await renderer.render(state.doc,state.page,Math.max(100,width-padding),state.zoom);if(!result)return;state.viewport=result.viewport;$('#loading').hidden=true;drawAnnotations();$('#reader-status').textContent=result.hasText?'專注閱讀模式':'此頁沒有可選取文字；可加入文字註解';$('#paper-footer').textContent=result.hasText?(state.demo?'示範文件 · 可選字、畫重點與加入筆記':'文件僅在此瀏覽器處理 · 下次重新匯入可接續筆記'):'此頁可能為掃描影像；OCR 尚未啟用，可使用文字註解工具。';}catch(error){$('#loading').textContent='無法顯示這一頁，請試試其他頁面。';toast('頁面顯示失敗：'+error.message);}}
-function updateNavigation(){const total=state.doc?.numPages||1;$('#page-input').value=state.page;$('#page-input').max=total;$('#page-total').textContent=total;document.querySelector('[data-action="prev"]').disabled=state.page<=1;document.querySelector('[data-action="next"]').disabled=state.page>=total;const start=Math.max(1,state.page-8),end=Math.min(total,Math.max(20,state.page+8));$('#page-thumbnails').innerHTML=Array.from({length:end-start+1},(_,i)=>start+i).map(p=>`<button class="thumb ${p===state.page?'active':''}" data-page="${p}" aria-label="第 ${p} 頁" ${p===state.page?'aria-current="page"':''}><span class="mini-page"></span>${p}</button>`).join('');}
-async function goPage(page){if(!state.doc||state.busy)return;state.page=clamp(Math.round(Number(page)||1),1,state.doc.numPages);updateNavigation();renderTranslation(state.page,state.demo);$('#pdf-scroll').scrollTop=0;$('#translation-content').scrollTop=0;await renderPage();}
-async function openDocument(bytes,name,isDemo=false){const serial=++loadSerial;state.busy=true;$('#reader-status').textContent='正在讀取 PDF…';hideSelection();try{const [doc,key]=await Promise.all([loadPdf(bytes),documentKey(bytes)]);if(serial!==loadSerial){await doc.destroy();return;}const previous=state.doc;let data;try{data=readDocument(key);}catch{data={notes:{quotes:[]},annotations:[]};toast('這份文件的舊筆記無法讀取，請先保留已匯出的備份。');}Object.assign(state,{doc,key,bytes,name,demo:isDemo,page:1,zoom:1,notes:data.notes,annotations:data.annotations,history:[]});state.notes.quotes??=[];$('#document-title').textContent=name;$('#document-meta').textContent=`${isDemo?'互動示範論文':'本機 PDF'}  ·  ${doc.numPages} 頁  ·  ${isDemo?'英文':'原始版面'}`;$('#demo-badge').hidden=!isDemo;$('#zoom-label').textContent='100%';renderNotebook(state.notes,state.demo);$('#notes-count').textContent=noteCount(state.notes);setTool('select');updateNavigation();renderTranslation(1,isDemo);$('#pdf-scroll').scrollTop=0;await renderPage();if(previous&&previous!==doc)await previous.destroy();}catch(error){toast(error.name==='PasswordException'?'這份 PDF 有密碼保護，請先解鎖後再匯入。':'無法讀取 PDF。請確認檔案完整且為有效的 PDF。');$('#reader-status').textContent=state.doc?'保留目前閱讀的論文':'無法載入論文';}finally{if(serial===loadSerial)state.busy=false;}}
-function toggleNotes(force){const open=typeof force==='boolean'?force:$('#notebook').hidden;$('#notebook').hidden=!open;$('#notes-toggle').setAttribute('aria-expanded',open);document.body.classList.toggle('notebook-open',open);if(open)renderNotebook(state.notes,state.demo);setTimeout(renderPage,0);}
-function captureSelection(){if(state.tool==='comment'||state.busy)return;const selection=window.getSelection();if(!selection?.rangeCount||selection.isCollapsed)return;const range=selection.getRangeAt(0),layer=$('#text-layer');if(!layer.contains(range.commonAncestorContainer))return;const text=selection.toString().trim();if(!text)return;const bounds=$('#pdf-page').getBoundingClientRect();const rects=Array.from(range.getClientRects()).filter(r=>r.width>1&&r.height>1&&r.bottom>bounds.top&&r.top<bounds.bottom).map(r=>normalizedRect(r,bounds)).filter(r=>r.width>0&&r.height>0);if(!rects.length)return;state.selection={text,rects,page:state.page,context:selection.anchorNode?.parentElement?.textContent||''};if(state.tool==='highlight'){highlightSelection();return;}$('#selected-word').textContent=text;$('#word-label').textContent=state.demo?'DEMO · WORD LOOKUP':'WORD LOOKUP';$('#word-meaning').textContent=state.demo?lookupDemo(text,state.page,state.selection.context):'查詞服務尚未啟用。你仍可以發音、畫重點，或將這段文字加入筆記。';const pop=$('#selection-popover');pop.hidden=false;const r=range.getBoundingClientRect();const height=pop.offsetHeight;pop.style.left=`${clamp(r.left,12,innerWidth-297)}px`;pop.style.top=`${clamp(r.bottom+12,12,innerHeight-height-12)}px`;}
-function highlightSelection(){const s=state.selection;if(!s)return toast('請先用滑鼠選取原文，再畫重點。');changeAnnotations([...state.annotations,{id:crypto.randomUUID(),kind:'highlight',page:s.page,rects:s.rects,text:s.text}]);hideSelection();window.getSelection()?.removeAllRanges();toast('已標記重點。點擊標記可移除，或按復原。');}
-function speak(){if(!state.selection?.text)return;if(!('speechSynthesis'in window))return toast('此瀏覽器無法播放語音。');const voices=speechSynthesis.getVoices(),english=voices.find(v=>v.lang==='en-US')||voices.find(v=>v.lang.startsWith('en'));if(voices.length&&!english)return toast('系統尚未安裝英文語音，請在裝置語音設定中加入。');speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(state.selection.text);utterance.lang='en-US';if(english)utterance.voice=english;utterance.rate=.88;utterance.onerror=()=>toast('目前無法播放英文語音，請檢查裝置的語音設定。');speechSynthesis.speak(utterance);}
-function quoteSelection(){const s=state.selection;if(!s)return;state.notes.quotes.push({id:crypto.randomUUID(),text:s.text,page:s.page});persist();hideSelection();toggleNotes(true);toast('已加入原文摘錄，點頁碼可回到來源。');}
-async function confirmComment(event){event.preventDefault();const text=$('#comment-text').value.trim();if(!text||!pendingComment)return;const target=pendingComment;const button=$('#comment-form button[type="submit"]');button.disabled=true;try{const page=await state.doc.getPage(target.page),v=page.getViewport({scale:1});const width=Math.min(230,v.width*.4),stamp=await createCommentStamp(text,width);const rw=width/v.width,rh=Math.min(stamp.height/v.height,.92);const rect={x:clamp(target.x,0,1-rw),y:clamp(target.y,0,1-rh),width:rw,height:rh};changeAnnotations([...state.annotations,{id:crypto.randomUUID(),kind:'comment',page:target.page,rects:[rect],text,image:stamp.image}]);$('#comment-dialog').close();pendingComment=null;setTool('select');toast('中文註解已加入，也會包含在下載的 PDF。');}catch{toast('註解儲存失敗，請再試一次。');}finally{button.disabled=false;}}
-async function exportPdf(){if(!state.bytes)return;const button=$('#confirm-export');button.disabled=true;button.textContent='正在製作 PDF…';const source=state.bytes,annotations=structuredClone(state.annotations),name=state.name;try{const bytes=await exportAnnotatedPdf(source,annotations);downloadFile(bytes,`${name.replace(/\.pdf$/i,'')}_註記.pdf`,'application/pdf');$('#export-dialog').close();toast('註記 PDF 已準備好，請查看瀏覽器下載。');}catch{toast('PDF 匯出失敗。請先匯出筆記，再重新嘗試。');}finally{button.disabled=false;button.textContent='下載註記 PDF';}}
-const actions={upload:()=>$('#pdf-input').click(),notes:()=>toggleNotes(),prev:()=>goPage(state.page-1),next:()=>goPage(state.page+1),'zoom-in':()=>zoom(.15),'zoom-out':()=>zoom(-.15),'zoom-reset':()=>zoom(0,true),undo:()=>{if(!state.history.length)return;state.annotations=state.history.pop();drawAnnotations();persist();toast('已復原上一筆註記變更。');},'close-selection':hideSelection,'highlight-selection':highlightSelection,speak,quote:quoteSelection,'cancel-comment':()=>$('#comment-dialog').close(),export:()=>{if(state.bytes)$('#export-dialog').showModal();},'cancel-export':()=>$('#export-dialog').close(),'confirm-export':exportPdf,'export-notes':()=>downloadFile(notesToMarkdown(state.name,state.notes),state.name.replace(/\.pdf$/i,'')+'_閱讀筆記.md','text/markdown;charset=utf-8'),help:()=>$('#help-dialog').showModal(),'close-help':()=>$('#help-dialog').close()};
-function zoom(delta,reset=false){state.zoom=reset?1:clamp(state.zoom+delta,.6,2);$('#zoom-label').textContent=Math.round(state.zoom*100)+'%';renderPage();}
-document.addEventListener('click',event=>{const button=event.target.closest('[data-action]');if(button){actions[button.dataset.action]?.();return;}const tool=event.target.closest('[data-tool]');if(tool){if(tool.dataset.tool==='highlight'&&state.selection)highlightSelection();else setTool(tool.dataset.tool);return;}const thumb=event.target.closest('[data-page]');if(thumb){goPage(thumb.dataset.page);return;}const source=event.target.closest('[data-source-page]');if(source){goPage(source.dataset.sourcePage);if(innerWidth<1150)toggleNotes(false);$('#workspace').classList.remove('show-translation');return;}const quote=event.target.closest('[data-remove-quote]');if(quote){state.notes.quotes=state.notes.quotes.filter(q=>q.id!==quote.dataset.removeQuote);persist();renderNotebook(state.notes,state.demo);return;}const annotation=event.target.closest('[data-annotation]');if(annotation){changeAnnotations(state.annotations.filter(a=>a.id!==annotation.dataset.annotation));toast('已移除註記；可按復原還原。');return;}const mobile=event.target.closest('[data-mobile]');if(mobile){document.querySelectorAll('[data-mobile]').forEach(el=>el.classList.toggle('active',el===mobile));$('#workspace').classList.toggle('show-translation',mobile.dataset.mobile==='translation');if(mobile.dataset.mobile==='original')renderPage();}});
-$('#pdf-input').addEventListener('change',async event=>{const file=event.target.files[0];if(!file)return;event.target.value='';if(!file.name.toLowerCase().endsWith('.pdf')&&file.type!=='application/pdf')return toast('請選擇 PDF 檔案。');if(file.size>150*1024*1024)return toast('請選擇小於 150 MB 的 PDF，以免瀏覽器記憶體不足。');await openDocument(new Uint8Array(await file.arrayBuffer()),file.name);});
+function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').hidden=true,4000);}
+function persist(){if(!state.key)return;try{saveDocument(state.key,state);$('#save-status').textContent='已自動儲存';}catch{toast('儲存失敗，請下載 PDF 與筆記。');}$('#notes-count').textContent=noteCount(state.notes);}
+function remember(){state.history.push(structuredClone(state.annotations));if(state.history.length>50)state.history.shift();document.querySelector('[data-action="undo"]').disabled=false;}
+function changed(){persist();drawAll();}
+function selectAnnotation(a){state.selected=a?.id||null;document.querySelectorAll('[data-annotation]').forEach(el=>el.classList.toggle('selected',el.dataset.annotation===state.selected));if(a?.kind==='text'){$('#text-color').value=a.color;$('#font-size').value=a.fontSize;}if(a?.kind==='highlight'){$('#highlight-color').value=a.color;$('#highlight-indicator').style.background=a.color;}}
+function setTool(tool){state.tool=tool;document.querySelectorAll('[data-tool]').forEach(el=>{el.classList.toggle('active',el.dataset.tool===tool);el.setAttribute('aria-pressed',el.dataset.tool===tool);});$('#pdf-pages').classList.toggle('text-mode',tool==='text');}
+function pageChanged(page){if(state.page===page&&$('#translation-content').childElementCount)return;state.page=page;$('#page-input').value=page;$('#translation-page').textContent=`第 ${page} 頁`;translator.showPage(page);$('#translation-content').scrollTop=0;navigation();}
+const translator=new AzureReader();
+const viewer=new ContinuousPdf($('#pdf-scroll'),page=>{if(!$('#original-pane').hidden)pageChanged(page);},drawPage);
+translator.onPageVisible=page=>{if(!state.doc||state.page===page)return;state.page=page;$('#page-input').value=page;$('#translation-page').textContent=`第 ${page} 頁`;navigation();if(!$('#original-pane').hidden)viewer.go(page);};
+const readingModes=initReadingModes({onChange:()=>{translator.setZoom(translator.zoom||1);if(!$('#original-pane').hidden){viewer.layout(false);viewer.go(state.page);$('#zoom-label').textContent=Math.round(viewer.zoom*100)+'%';}else{$('#zoom-label').textContent=Math.round((translator.zoom||1)*100)+'%';translator.showPage(state.page);}}});
+function goPage(value){const page=clamp(Math.round(Number(value)||1),1,state.doc?.numPages||1);pageChanged(page);if(!$('#original-pane').hidden)viewer.go(page);}
+function navigation(){$('#page-total').textContent=state.doc?.numPages||1;$('#page-input').max=state.doc?.numPages||1;$('[data-action="prev"]').disabled=state.page<=1;$('[data-action="next"]').disabled=state.page>=state.doc?.numPages;}
+function drawAll(){for(const p of viewer.pages)drawPage(p);$('[data-action="undo"]').disabled=!state.history.length;}
+function position(el,r){Object.assign(el.style,{left:r.x*100+'%',top:r.y*100+'%',width:r.width*100+'%'});}
+function drawPage(p){
+  const highlights=p.el.querySelector('.highlight-layer'),texts=p.el.querySelector('.annotation-layer');highlights.replaceChildren();
+  const annotations=state.annotations.filter(a=>a.page===p.number),ids=new Set(annotations.map(a=>a.id));
+  for(const el of [...texts.children])if(!ids.has(el.dataset.annotation))el.remove();
+  for(const a of annotations){
+    if(a.kind==='highlight'){for(const r of a.rects){const el=document.createElement('span');el.className='highlight-mark';el.dataset.annotation=a.id;position(el,r);el.style.height=r.height*100+'%';el.style.background=a.color;el.classList.toggle('selected',state.selected===a.id);highlights.append(el);}continue;}
+    if(a.kind!=='text')continue;
+    let el=[...texts.children].find(e=>e.dataset.annotation===a.id);
+    if(!el){el=document.createElement('div');el.className='free-text';el.dataset.annotation=a.id;
+      const handle=document.createElement('button');handle.className='text-handle';handle.type='button';handle.textContent='⠿';handle.title='拖曳移動文字';handle.setAttribute('aria-label','移動文字');
+      const content=document.createElement('div');content.className='text-content';content.contentEditable='plaintext-only';content.setAttribute('role','textbox');content.setAttribute('aria-label','頁面文字');content.spellcheck=false;content.textContent=a.text;
+      el.append(handle,content);texts.append(el);
+      content.addEventListener('focus',()=>{selectAnnotation(find(a.id));remember();});
+      content.addEventListener('input',()=>{const item=find(a.id);if(!item)return;item.text=content.innerText;item.rects[0].height=Math.min(1-item.rects[0].y,el.offsetHeight/p.el.clientHeight);persist();});
+      el.addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation();remove(a.id);});
+      el.addEventListener('pointerdown',e=>{
+        e.stopPropagation();if(e.button!==0)return;const item=find(a.id);if(!item)return;selectAnnotation(item);
+        // Shift-drag retains native text selection; ordinary dragging moves the note.
+        if(e.shiftKey&&e.target===content)return;
+        e.preventDefault();const start=structuredClone(item),x=e.clientX,y=e.clientY,b=p.el.getBoundingClientRect();let moved=false;
+        el.setPointerCapture(e.pointerId);
+        const move=event=>{
+          if(!moved&&Math.hypot(event.clientX-x,event.clientY-y)<4)return;
+          if(!moved){remember();moved=true;content.blur();getSelection()?.removeAllRanges();el.classList.add('moving');}
+          event.preventDefault();Object.assign(item,moveAnnotation(start,(event.clientX-x)/b.width,(event.clientY-y)/b.height));position(el,item.rects[0]);
+        };
+        const end=event=>{
+          event.stopPropagation();el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',end);el.removeEventListener('pointercancel',end);el.classList.remove('moving');
+          if(el.hasPointerCapture(e.pointerId))el.releasePointerCapture(e.pointerId);
+          if(moved){persist();return;}
+          if(event.type==='pointercancel'||e.target===handle)return;
+          content.focus({preventScroll:true});const caret=document.caretRangeFromPoint?.(x,y);
+          if(caret&&content.contains(caret.startContainer)){const selection=getSelection();selection.removeAllRanges();selection.addRange(caret);}
+        };
+        el.addEventListener('pointermove',move);el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);
+      });
+    }
+    position(el,a.rects[0]);el.style.fontSize=a.fontSize*p.scale+'px';el.style.color=a.color;el.classList.toggle('selected',state.selected===a.id);
+    const content=el.querySelector('.text-content');if(document.activeElement!==content&&content.innerText!==a.text)content.textContent=a.text;
+  }
+}
+const find=id=>state.annotations.find(a=>a.id===id);
+function remove(id){if(!find(id))return;remember();state.annotations=state.annotations.filter(a=>a.id!==id);state.selected=null;changed();window.getSelection()?.removeAllRanges();}
+function hitHighlight(event){const el=event.target.closest('.pdf-page');if(!el)return;const b=el.getBoundingClientRect(),x=(event.clientX-b.left)/b.width,y=(event.clientY-b.top)/b.height;return [...state.annotations].reverse().find(a=>a.kind==='highlight'&&a.page===Number(el.dataset.page)&&a.rects.some(r=>x>=r.x&&x<=r.x+r.width&&y>=r.y&&y<=r.y+r.height));}
+function selectionRects(range,layer,bounds){
+  const rects=[],walker=document.createTreeWalker(layer,NodeFilter.SHOW_TEXT);let node;
+  while((node=walker.nextNode())){if(!range.intersectsNode(node)||!node.textContent.trim())continue;const piece=document.createRange();piece.selectNodeContents(node);if(node===range.startContainer)piece.setStart(node,range.startOffset);if(node===range.endContainer)piece.setEnd(node,range.endOffset);for(const r of piece.getClientRects())if(r.width>.3&&r.height>1)rects.push(normalizedRect(r,bounds));}
+  return cleanSelectionRects(rects);
+}
+function captureSelection(){
+  if(state.busy||state.tool==='text')return;const selection=getSelection();if(!selection?.rangeCount||selection.isCollapsed)return false;
+  const range=selection.getRangeAt(0),parent=range.startContainer.parentElement,layer=parent?.closest('.textLayer');if(!layer||!layer.contains(range.endContainer))return false;
+  const el=layer.closest('.pdf-page'),page=Number(el.dataset.page),text=selection.toString().trim();if(!text)return false;
+  const rects=selectionRects(range,layer,el.getBoundingClientRect());if(!rects.length)return false;
+  state.selection={text,rects,page,context:parent.textContent};selectAnnotation(null);pageChanged(page);
+  translator.align(page,selectionParts(range,layer),text,state.selection.context);
+  if(state.tool==='highlight'){remember();state.annotations.push({id:crypto.randomUUID(),kind:'highlight',page,rects,text,color:$('#highlight-color').value});changed();selection.removeAllRanges();}
+  return true;
+}
+function clearCorrespondence(){dismissCorrespondence(state,{translator,clearDemo:clearTranslationSelection});}
+function addText(e){const el=e.target.closest('.pdf-page');if(!el)return;const p=viewer.pages[Number(el.dataset.page)-1],b=el.getBoundingClientRect(),fontSize=clamp(Number($('#font-size').value)||14,6,96);
+  const a={id:crypto.randomUUID(),kind:'text',page:p.number,text:'',fontSize,color:$('#text-color').value,rects:[textRectAt((e.clientX-b.left)/b.width,(e.clientY-b.top)/b.height,p.base.width,p.base.height,fontSize)]};
+  remember();state.annotations.push(a);state.selected=a.id;changed();setTool('select');p.el.querySelector(`[data-annotation="${a.id}"] .text-content`).focus();
+}
+for(const pane of ['#pdf-scroll','#translation-content'])$(pane).addEventListener('pointerdown',e=>{if(e.button===0)clearCorrespondence();});
+$('#pdf-pages').addEventListener('pointerup',e=>{if(e.target.closest('.free-text'))return;if(state.tool==='text')return addText(e);clearTimeout(highlightTimer);highlightTimer=setTimeout(()=>{if(!captureSelection())selectAnnotation(hitHighlight(e));},state.tool==='highlight'?250:0);});
+$('#pdf-pages').addEventListener('dblclick',e=>{const a=hitHighlight(e);if(a){clearTimeout(highlightTimer);e.preventDefault();remove(a.id);}});
+function changeStyle(kind,value){const a=find(state.selected);if(a?.kind!==kind)return;remember();if(kind==='highlight')a.color=value;else Object.assign(a,value);changed();}
+$('#highlight-color').addEventListener('input',e=>{$('#highlight-indicator').style.background=e.target.value;changeStyle('highlight',e.target.value);});
+$('#text-color').addEventListener('input',e=>changeStyle('text',{color:e.target.value}));
+$('#font-size').addEventListener('input',e=>{const value=Number(e.target.value);if(!value||value<6||value>96)return;changeStyle('text',{fontSize:value});const a=find(state.selected);if(a?.kind==='text'){const p=viewer.pages[a.page-1],el=p.el.querySelector(`[data-annotation="${a.id}"]`);a.rects[0].height=Math.min(1-a.rects[0].y,el.offsetHeight/p.el.clientHeight);persist();}});
+function speak(){if(!state.selection?.text)return;if(!window.speechSynthesis)return toast('此瀏覽器無法播放語音。');speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(state.selection.text);utterance.lang='en-US';utterance.rate=.88;const voice=speechSynthesis.getVoices().find(v=>v.lang==='en-US');if(voice)utterance.voice=voice;utterance.onerror=e=>{if(!['canceled','interrupted'].includes(e.error))toast('無法播放英文語音，請確認系統英文語音設定。');};speechSynthesis.speak(utterance);}
+document.addEventListener('keydown',e=>{if(shouldSpeak(e,state.selection?.text)&&!$('dialog[open]')){e.preventDefault();speak();}if(e.key==='Escape'){clearCorrespondence();selectAnnotation(null);setTool('select');}});
+async function openDocument(bytes,name,demo=false){const serial=++loadSerial;state.busy=true;$('#reader-status').textContent='正在讀取 PDF…';try{
+  const [doc,key]=await Promise.all([loadPdf(bytes),documentKey(bytes)]);if(serial!==loadSerial){doc.destroy();return;}
+  const previous=state.doc;let data;try{data=readDocument(key);}catch{data={notes:{quotes:[]},annotations:[]};toast('舊筆記無法讀取，請保留先前匯出的備份。');}
+  Object.assign(state,{doc,key,bytes,name,demo,page:1,notes:data.notes,annotations:migrateAnnotations(data.annotations),history:[],selection:null,selected:null});state.notes.quotes??=[];
+  translator.open(doc,key,demo);
+  $('#document-title').textContent=name;$('#demo-badge').hidden=!demo;$('#translation-content').replaceChildren();pageChanged(1);renderNotebook(state.notes,demo);$('#notes-count').textContent=noteCount(state.notes);setTool('select');await document.fonts.load('14px "Paperleaf Noto Sans TC"');await viewer.open(doc);drawAll();$('#reader-status').textContent='';if(previous)await previous.destroy();
+}catch(error){toast(error.name==='PasswordException'?'PDF 有密碼保護，請先解鎖後再匯入。':'無法讀取 PDF，請確認檔案完整。');$('#reader-status').textContent='讀取失敗';console.error(error);}finally{if(serial===loadSerial)state.busy=false;}}
+function toggleNotes(){const open=$('#notebook').hidden;$('#notebook').hidden=!open;$('#notes-toggle').setAttribute('aria-expanded',open);document.body.classList.toggle('notebook-open',open);if(open)renderNotebook(state.notes,state.demo);}
+async function exportPdf(){if(!state.bytes)return;const button=$('#confirm-export');button.disabled=true;button.textContent='正在製作…';try{const bytes=await exportAnnotatedPdf(state.bytes,structuredClone(state.annotations));downloadFile(bytes,state.name.replace(/\.pdf$/i,'')+'_註記.pdf','application/pdf');$('#export-dialog').close();toast('PDF 已準備好，請查看下載。');}catch(error){toast('PDF 匯出失敗，請再試一次。');console.error(error);}finally{button.disabled=false;button.textContent='下載';}}
+const actions={upload:()=>$('#pdf-input').click(),notes:toggleNotes,prev:()=>goPage(state.page-1),next:()=>goPage(state.page+1),'zoom-reset':()=>$('#original-pane').hidden?translator.setZoom(1):viewer.setZoom(1),undo:()=>{if(state.history.length){state.annotations=state.history.pop();state.selected=null;changed();}},quote:()=>{const s=state.selection;if(!s)return;state.notes.quotes.push({id:crypto.randomUUID(),text:s.text,page:s.page});persist();if($('#notebook').hidden)toggleNotes();else renderNotebook(state.notes,state.demo);},export:()=>{if(state.bytes)$('#export-dialog').showModal();},'cancel-export':()=>$('#export-dialog').close(),'confirm-export':exportPdf,'export-notes':()=>downloadFile(notesToMarkdown(state.name,state.notes),state.name.replace(/\.pdf$/i,'')+'_閱讀筆記.md','text/markdown;charset=utf-8')};
+document.addEventListener('click',e=>{const button=e.target.closest('[data-action]');if(button)return actions[button.dataset.action]?.();const tool=e.target.closest('[data-tool]');if(tool){setTool(tool.dataset.tool);if(state.tool==='highlight'&&state.selection&&getSelection()?.toString())captureSelection();return;}
+  const source=e.target.closest('[data-source-page]');if(source){if(readingModes.mode==='zh-only')readingModes.setMode('en-only');goPage(Number(source.dataset.sourcePage));if(innerWidth<1150&&!$('#notebook').hidden)toggleNotes();$('#workspace').classList.remove('show-translation');return;}
+  const quote=e.target.closest('[data-remove-quote]');if(quote){state.notes.quotes=state.notes.quotes.filter(q=>q.id!==quote.dataset.removeQuote);persist();renderNotebook(state.notes,state.demo);}
+  const mobile=e.target.closest('[data-mobile]');if(mobile){document.querySelectorAll('[data-mobile]').forEach(el=>el.classList.toggle('active',el===mobile));$('#workspace').classList.toggle('show-translation',mobile.dataset.mobile==='translation');viewer.layout();}
+});
+$('#pdf-input').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;e.target.value='';if(!file.name.toLowerCase().endsWith('.pdf'))return toast('請選擇 PDF。');if(file.size>150*1024*1024)return toast('請選擇小於 150 MB 的 PDF。');await openDocument(new Uint8Array(await file.arrayBuffer()),file.name);});
 $('#page-input').addEventListener('change',e=>goPage(e.target.value));
 $('#notebook-body').addEventListener('input',e=>{if(e.target.dataset.note){state.notes[e.target.dataset.note]=e.target.value;persist();}});
-$('#pdf-page').addEventListener('pointerup',event=>{if(state.tool==='comment'&&!event.target.closest('[data-annotation]')&&state.doc&&!state.busy){const rect=$('#pdf-page').getBoundingClientRect();pendingComment={page:state.page,x:(event.clientX-rect.left)/rect.width,y:(event.clientY-rect.top)/rect.height};$('#comment-text').value='';$('#comment-dialog').showModal();$('#comment-text').focus();}else setTimeout(captureSelection,0);});
-$('#comment-form').addEventListener('submit',confirmComment);
-document.addEventListener('keydown',event=>{if(shouldSpeak(event,state.selection?.text)&&!document.querySelector('dialog[open]')){event.preventDefault();speak();}if(event.key==='Escape')hideSelection();});
-$('#selection-popover').addEventListener('pointerdown',event=>{if(event.target.closest('button'))event.preventDefault();});
-document.addEventListener('pointerdown',event=>{if(!event.target.closest('#selection-popover,#pdf-page,[data-tool]'))hideSelection();});
-$('#pdf-scroll').addEventListener('scroll',hideSelection,{passive:true});
-const splitter=$('#splitter');let dragging=false;const setSplit=value=>{const v=clamp(value,30,70);$('#reading-panes').style.setProperty('--left',v+'%');splitter.setAttribute('aria-valuenow',Math.round(v));};
-splitter.addEventListener('pointerdown',e=>{dragging=true;splitter.setPointerCapture(e.pointerId);document.body.classList.add('dragging');hideSelection();});
-splitter.addEventListener('pointermove',e=>{if(!dragging)return;const rect=$('#reading-panes').getBoundingClientRect();setSplit((e.clientX-rect.left)/rect.width*100);});
-const endDrag=()=>{dragging=false;document.body.classList.remove('dragging');renderPage();};splitter.addEventListener('pointerup',endDrag);splitter.addEventListener('pointercancel',endDrag);
-splitter.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();const value=Number(splitter.getAttribute('aria-valuenow'));setSplit(e.key==='Home'?30:e.key==='End'?70:value+(e.key==='ArrowRight'?2:-2));renderPage();}});
-new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(!dragging)renderPage();},120);}).observe($('#pdf-scroll'));
+const splitter=$('#splitter');let dragging=false;
+function setSplit(value){readingModes.setSplit(value);}
+splitter.addEventListener('pointerdown',e=>{if(e.button!==0)return;dragging=true;splitter.setPointerCapture(e.pointerId);document.body.classList.add('dragging');});
+splitter.addEventListener('pointermove',e=>{if(dragging){const b=$('#reading-panes').getBoundingClientRect();setSplit((e.clientX-b.left)/(b.width-splitter.offsetWidth)*100);}});
+for(const event of ['pointerup','pointercancel'])splitter.addEventListener(event,()=>{dragging=false;document.body.classList.remove('dragging');viewer.layout();});
+splitter.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();setSplit(e.key==='Home'?25:e.key==='End'?75:Number(splitter.getAttribute('aria-valuenow'))+(e.key==='ArrowRight'?2:-2));viewer.layout();}});
+try{const response=await fetch(new URL('./demo.pdf',import.meta.url));if(!response.ok)throw Error();await openDocument(new Uint8Array(await response.arrayBuffer()),'Attention and Learning',true);}catch{toast('請匯入 PDF 開始閱讀。');}
 
-if(document.modelContext?.registerTool){const lifecycle=new AbortController();const register=tool=>Promise.resolve(document.modelContext.registerTool(tool,{signal:lifecycle.signal})).catch(()=>{});register({name:'read_paper_reader_state',description:'Read the current document name, page, note count and annotation count. Does not expose document text.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:true},execute(input){if(input&&Object.keys(input).length)throw new Error('No parameters accepted');return{document:state.name,page:state.page,pages:state.doc?.numPages||0,notes:noteCount(state.notes),annotations:state.annotations.length,demo:state.demo};}});register({name:'open_reading_notebook',description:'Open the notebook for the current paper. Does not create or change notes.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(input){if(input&&Object.keys(input).length)throw new Error('No parameters accepted');toggleNotes(true);return{notebookOpen:true};}});window.addEventListener('pagehide',()=>lifecycle.abort(),{once:true});}
-try{const response=await fetch('/demo.pdf');if(!response.ok)throw new Error('Demo unavailable');await openDocument(new Uint8Array(await response.arrayBuffer()),'Attention and Learning',true);}catch{$('#loading').textContent='請匯入 PDF，開始閱讀。';toast('示範論文暫時無法載入，仍可匯入自己的 PDF。');}
+$('#page-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();goPage(e.target.value);}});

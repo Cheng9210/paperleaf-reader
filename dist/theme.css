@@ -1,0 +1,78 @@
+/* The application chrome is dark; document pixels and paper stay untouched. */
+:root{--ink:#e8e9ed;--muted:#a1a1aa;--green:#a9c7fa;--line:#ffffff14;--bg:#17181b;color-scheme:dark;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Paperleaf Noto Sans TC',sans-serif}
+body{height:100dvh;overflow:hidden;background:#17181b}
+.compact-header{height:48px;padding:0 20px;background:#202125;border-bottom-color:#ffffff12;gap:14px}
+.compact-brand{color:#d6e1f5}.document-identity{gap:10px}#document-title{font-weight:500;font-size:12px}.demo-label{color:#aaaeb8;border-color:#ffffff26;border-radius:4px}.count{background:#ffffff14;color:#c5c8d0}
+.app-shell{height:calc(100dvh - 48px)}
+.reader-toolbar{height:44px;background:#25262a;padding:0 16px;border-bottom-color:#ffffff0e}
+.icon-button,.tool,.zoom-label,.page-input,.speech-hint,.font-size-control{color:#bbbfc9}
+.quiet:hover,.icon-button:hover,.tool:hover{background:#ffffff10;color:#fff}.tool.active{background:#46566f;color:#ecf3ff}
+.page-input input,.font-size-control input{color:#e6e8ee;background:#17181b;border:1px solid #ffffff1c;border-radius:6px}.color-control input{border-color:#ffffff24;border-radius:5px}
+kbd{background:#303136;color:#b7bbc5;border-color:#ffffff20}.button,.tool,.icon-button,.translation-actions button,select{transition:background-color .16s ease,color .16s ease,box-shadow .16s ease}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid #92bbff;outline-offset:2px}
+.view-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 18px;min-height:42px;flex:none;background:#202125;border-bottom:1px solid #ffffff12}
+.reading-mode-label{display:flex;align-items:center;gap:10px;color:#a9acb6;font-size:11px;white-space:nowrap}
+#reading-mode{font:inherit;color:#e3e6ed;background:#303136;border:1px solid #ffffff14;border-radius:7px;padding:5px 25px 5px 9px;max-width:100%;cursor:pointer}
+.translation-actions{margin:0;gap:6px}.translation-actions button{color:#c2cbe0;font-size:11px;background:#ffffff07;border:1px solid #ffffff10;border-radius:6px;padding:6px 9px}.translation-actions button:hover{background:#ffffff14;color:#fff}
+.pane-heading{height:31px;background:#242529;color:#adb1bc;border-bottom:1px solid #ffffff10;padding:0 16px;font-size:10px}.pane-page,.lang-label{color:#999eaa}
+.reading-panes{display:grid;grid-template-columns:minmax(0,var(--left-track,55fr)) 9px minmax(0,var(--right-track,45fr))}
+.reading-panes>.pane{display:flex;width:auto!important;min-height:0;min-width:0}.reading-panes[data-reading-mode$="only"]{grid-template-columns:minmax(0,1fr)}
+.reading-panes>.splitter{display:flex;width:9px;background:#1d1e21;border:0}.splitter span{width:2px;height:34px;background:#4b4e56}.splitter:hover,.splitter:focus-visible{background:#343b48}.splitter:hover span{background:#b6cdf4}
+.pdf-scroll{background:#191a1d;padding:20px;scrollbar-color:#555861 transparent;scrollbar-width:thin;scroll-behavior:auto}
+.pdf-page{box-shadow:0 3px 18px #0005;background:white;color:#222;color-scheme:light}
+.translation-pane{background:#faf9f6;color:#2e3238;color-scheme:light}.translation-scroll{background:#faf9f6;color:#2e3238;padding:25px 30px 40px;scrollbar-color:#c1c0bc transparent;scroll-behavior:auto;min-height:0}
+.translation-scroll p{color:#41464c}.translation-scroll h1,.translation-scroll h2{color:#282e36}.translation-empty{color:#737780}.translated-page{max-width:1080px;margin-inline:auto}
+.notebook{background:#25262a;color:#e2e3e8;border-color:#ffffff15;box-shadow:-10px 0 28px #0003}.notebook-header h2{color:#e2e3e8}.note-section{border-color:#ffffff14}.note-section textarea{background:#1c1d20;border-color:#ffffff18;color:#dddfe5}.note-section textarea::placeholder{color:#7c818e}.note-example,.quote-card{background:#303238;color:#c0c5d0}.quote-card p,.quote-card button,.note-sub-label,.notebook-bottom{color:#adb5c4}.notebook-bottom{border-color:#ffffff14}
+dialog{background:#282a2f;color:#ecedf2;border-color:#ffffff20;box-shadow:0 24px 90px #0007;border-radius:16px}dialog p,.azure-footnote{color:#b1b7c3}.dialog-heading,.dialog-heading h2{color:#e1e7f2}.export-info{background:#34373e;color:#bac3d3}#azure-form input:not([type=checkbox]){background:#1b1d21;border-color:#ffffff20;color:#f0f2f6}#azure-message{color:#b9d2fb}dialog a{color:#a9c7fa}.primary{background:#b3cffc;color:#172132}.primary:hover{background:#c9ddff;color:#172132}.toast{background:#e6eaf1;color:#252c38;box-shadow:0 8px 32px #0005}
+@media(max-width:1150px){.notebook{top:134px;bottom:0}.speech-hint{display:none}}
+@media(max-width:750px){.compact-header{padding:0 10px}.reader-toolbar{height:auto;min-height:70px;padding:5px 8px}.view-toolbar{padding:7px 10px;gap:8px;flex-wrap:wrap}.reading-mode-label{gap:7px}.translation-actions{gap:4px}.translation-actions button{padding:6px}.reading-panes>.pane{display:flex}.reading-panes>.splitter{display:flex}.translation-scroll{padding:18px 14px}.pdf-scroll{padding:10px}.pane-heading{padding:0 10px}.notebook{position:fixed;top:0;bottom:0}.speech-hint{display:none}.translation-columns{grid-template-columns:minmax(0,1fr)}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+/* Page artwork remains unfiltered; Chinese type sits in original PDF geometry. */
+#translation-content{padding:16px;overflow:auto;overflow-anchor:none;background:#15181d}
+.translated-pdf-page{position:relative;width:100%;min-width:0;background:#fff;color:#20252b;margin:0 auto 16px;box-shadow:0 4px 20px #0005;isolation:isolate;container-type:inline-size}
+.translated-pdf-page.zoom-preview{will-change:transform}
+.translation-artwork{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.translated-pdf-page .pdf-translated-block{position:absolute;z-index:1;margin:0!important;padding:0!important;box-sizing:border-box;font-family:'Paperleaf Noto Sans TC',sans-serif;line-height:1.3;letter-spacing:0;white-space:pre-wrap;overflow-wrap:anywhere;overflow:hidden;color:#20252b;text-align:left;font-weight:400}
+.translated-pdf-page h3.pdf-translated-block{font-weight:700}
+.translated-pdf-page .azure-word{background:#ffe68a;color:#20252b;padding:0;border-radius:1px}
+.translation-more{position:absolute;z-index:5;transform:translate(-100%,-100%);font:12px/1.35 'Paperleaf Noto Sans TC',sans-serif;color:#17385c;max-width:calc(100% - 8px)}
+.translation-more summary{display:grid;place-items:center;list-style:none;width:18px;height:18px;cursor:pointer;background:#e6edf8;border:1px solid #a9c3e3;border-radius:5px;box-shadow:0 1px 3px #0002;font-size:15px;line-height:1}
+.translation-more summary::marker{content:''}.translation-more summary:hover,.translation-more summary:focus-visible{background:#c9ddf5}
+.translation-more[open]{z-index:20;transform:translate(-100%,-22px)}
+.translation-more[data-side="left"][open]{transform:translate(-18px,-22px)}
+.translation-more>p{position:relative;width:min(360px,80cqw);max-height:min(50vh,480px);overflow:auto;margin:4px 0 0!important;padding:12px!important;white-space:pre-wrap;background:#fff;color:#20252b;border:1px solid #bbc6d2;border-radius:7px;box-shadow:0 8px 28px #0004;font:14px/1.7 'Paperleaf Noto Sans TC',sans-serif}
+.translation-overflow{background:#fff;color:#20252b;padding:12px;border-radius:8px}.translation-overflow details{padding:8px}.translation-overflow p{font:14px/1.8 'Paperleaf Noto Sans TC',sans-serif;color:#20252b}.translation-overflow summary{cursor:pointer}
+#translation-progress{font:11px/1.3 sans-serif;color:#bdc7d7;margin-left:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(prefers-reduced-motion:reduce){.translation-overflow{scroll-behavior:auto}}
+
+#translation-content.demo-translation{background:#fff;color:#20252b}
+/* Three compact view controls; Chinese typesetting keeps a readable page scale. */
+#reading-mode{display:inline-flex;align-items:center;gap:3px;padding:3px;border-radius:10px;background:#2a2c31;max-width:none;flex-shrink:0}
+#reading-mode button{display:grid;place-items:center;width:34px;height:30px;border:0;border-radius:7px;background:transparent;color:#aeb5c1;cursor:pointer;transition:background .15s,color .15s,transform .1s}
+#reading-mode button:hover{background:#ffffff10;color:#f1f4fa}#reading-mode button:active{transform:scale(.94)}
+#reading-mode button[aria-pressed="true"]{background:#505b70;color:#fff;box-shadow:0 1px 4px #0003}
+#reading-mode svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.translated-pdf-page{min-width:0}
+.translated-pdf-page .pdf-translated-block{font-family:'Paperleaf Noto Sans TC','Noto Sans TC',sans-serif;line-height:1.65;letter-spacing:.025em;word-break:normal;line-break:strict;font-weight:400;-webkit-font-smoothing:antialiased}
+.translated-pdf-page h3.pdf-translated-block{font-weight:600;line-height:1.35;letter-spacing:.015em}
+.translation-overflow p{font-size:16px;line-height:1.85;letter-spacing:.025em}
+.translation-page-slot{display:block;min-width:0;margin-bottom:18px;position:relative}
+.translation-page-slot .translated-pdf-page{margin-bottom:0}
+.translated-pdf-page .pdf-translated-block{background:#fff}
+.translated-pdf-page .pdf-translated-block.reference-label{line-height:1.1;letter-spacing:0;white-space:nowrap;color:#3d4852}
+/* Keep a hidden language pane out of layout and out of scroll calculations. */
+.reading-panes>.pane[hidden],.reading-panes>.splitter[hidden],.translation-actions button[hidden],#translation-progress[hidden]{display:none!important}
+/* Give the paper more of the available height, including narrow windows. */
+.compact-header{height:40px;padding-inline:12px}.app-shell{height:calc(100dvh - 40px)}
+.reader-toolbar{height:38px;padding-inline:10px}.view-toolbar{min-height:36px;padding:3px 10px}.pane-heading{height:25px}
+#document-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:min(42vw,460px)}
+#azure-settings{font-size:0;min-width:32px;height:30px;padding:4px 6px}#azure-settings::before{content:'⚙';font-size:19px;line-height:1}
+.reader-toolbar #reading-mode{margin-left:auto}.reader-toolbar .translation-actions{flex:none;margin-left:0}
+.view-toolbar{min-height:26px;padding:2px 10px}.view-toolbar:has(#translation-progress[hidden]){display:none}
+@media(max-width:750px){
+ .compact-header{height:36px}.app-shell{height:calc(100dvh - 36px)}
+ .reader-toolbar{height:39px;min-height:39px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;justify-content:flex-start;gap:10px;padding:0 8px;scrollbar-width:none}.reader-toolbar::-webkit-scrollbar{display:none}
+ .toolbar-group{flex:0 0 auto}.tool-palette{order:0;width:auto;flex:0 0 auto;justify-content:flex-start}
+ .view-toolbar{min-height:26px;flex-wrap:nowrap;padding:2px 8px}.reading-mode-label{flex:none}.reader-toolbar #reading-mode{margin-left:auto}.reader-toolbar .translation-actions{flex:none}
+ .pane-heading{height:22px}.translation-scroll{padding:10px}.pdf-scroll{padding:8px}
+}

@@ -1,24 +1,75 @@
 <!doctype html>
-<html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="專注讀懂每一篇論文。雙欄閱讀、段落對照、閱讀筆記與 PDF 註記。"><title>Paperleaf · 論文閱讀室</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%233b6154'/%3E%3Cpath d='M9 8h10a5 5 0 0 1 0 10h-6v7H9zm4 4v6l9-6' fill='%23f3f1e8'/%3E%3C/svg%3E"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/vendor/pdf_viewer.css"></head>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="雙欄論文閱讀、連續捲動、閱讀筆記與 PDF 註記。"><title>Paperleaf · 論文閱讀室</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%233b6154'/%3E%3Cpath d='M9 8h10a5 5 0 0 1 0 10h-6v7H9zm4 4v6l9-6' fill='%23f3f1e8'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./vendor/pdf_viewer.css"><link rel="stylesheet" href="./styles.css"><link rel="stylesheet" href="./reader.css"><link rel="stylesheet" href="./theme.css">
+</head>
 <body>
- <header class="brandbar"><a class="brand" href="/" aria-label="Paperleaf 首頁"><span class="brandmark">p<span>↗</span></span>paperleaf<span class="brand-divider"></span><span class="brand-caption">論文閱讀室</span></a><div class="header-right"><span class="privacy"><i class="status-dot"></i> 僅儲存於此瀏覽器</span><button class="button import-button" data-action="upload"><span data-icon="upload"></span>匯入論文 <span class="file-tag">PDF</span></button></div></header>
- <main class="app-shell">
-  <section class="documentbar"><div class="document-identity"><span class="document-icon" data-icon="file"></span><div><div class="document-title" id="document-title">Attention and Learning</div><div class="document-meta" id="document-meta">互動示範論文 <span>·</span> 3 頁 <span>·</span> 英文</div></div><span class="demo-label" id="demo-badge">DEMO</span></div><div class="document-actions"><button class="button quiet" id="notes-toggle" data-action="notes" aria-expanded="false"><span data-icon="notebook"></span>閱讀筆記 <span class="count" id="notes-count">0</span></button><button class="button quiet" data-action="export"><span data-icon="download"></span><span class="export-label">下載論文</span></button></div></section>
-  <section class="reader-toolbar" aria-label="閱讀工具"><div class="toolbar-group"><button class="icon-button" data-action="prev" aria-label="上一頁"><span data-icon="chevron-left"></span></button><label class="page-input"><input id="page-input" type="number" min="1" value="1" aria-label="目前頁碼"><span>/ <span id="page-total">3</span></span></label><button class="icon-button" data-action="next" aria-label="下一頁"><span data-icon="chevron-right"></span></button><span class="toolbar-divider"></span><button class="icon-button" data-action="zoom-out" aria-label="縮小"><span data-icon="minus"></span></button><button class="zoom-label" data-action="zoom-reset" id="zoom-label" title="重設為符合欄寬">100%</button><button class="icon-button" data-action="zoom-in" aria-label="放大"><span data-icon="plus"></span></button></div><div class="tool-palette" role="group" aria-label="註記工具"><button class="tool active" data-tool="select" title="選取文字" aria-label="選取文字" aria-pressed="true"><span data-icon="cursor"></span></button><button class="tool" data-tool="highlight" title="螢光筆：先選取文字" aria-label="螢光筆" aria-pressed="false"><span data-icon="highlight"></span><span class="color-stroke"></span></button><button class="tool" data-tool="comment" title="在原文點一下加入註解" aria-label="文字註解" aria-pressed="false"><span data-icon="comment"></span></button><span class="toolbar-divider"></span><button class="tool" data-action="undo" title="復原上一筆註記" aria-label="復原"><span data-icon="undo"></span></button></div><div class="toolbar-hint"><span data-icon="mouse"></span>選取文字，開始深入閱讀</div></section>
-  <div class="mobile-tabs"><button class="active" data-mobile="original">原文</button><button data-mobile="translation">翻譯</button></div>
-  <div class="workspace" id="workspace"><aside class="page-rail" aria-label="頁面導覽"><span class="rail-heading" data-icon="pages"></span><div id="page-thumbnails"></div><span class="rail-bottom">PDF</span></aside>
-   <div class="reading-panes" id="reading-panes"><section class="pane original-pane" id="original-pane"><div class="pane-heading"><span><i class="pane-dot"></i>原文 <small>ORIGINAL</small></span><span class="lang-label">English</span></div><div class="pdf-scroll" id="pdf-scroll"><div class="pdf-page" id="pdf-page"><canvas id="pdf-canvas"></canvas><div class="textLayer" id="text-layer"></div><div id="annotation-layer" class="annotation-layer"></div><div class="loading-state" id="loading"><span class="loading-ring"></span>正在準備論文…</div></div><p class="paper-footer" id="paper-footer">示範文件 · 可選字、畫重點與加入筆記</p></div></section>
-   <div class="splitter" id="splitter" tabindex="0" role="separator" aria-label="調整原文與翻譯欄寬" aria-orientation="vertical" aria-valuemin="30" aria-valuemax="70" aria-valuenow="52"><span></span></div>
-   <section class="pane translation-pane" id="translation-pane"><div class="pane-heading"><span><i class="pane-dot sage"></i>翻譯 <small>TRANSLATION</small></span><span class="lang-label">繁體中文</span></div><div class="translation-scroll" id="translation-content"><div class="translation-notice"><span data-icon="sparkles"></span>示範譯文<span class="notice-separator">·</span>AI 翻譯尚未啟用</div><div class="translation-eyebrow">閱讀，從理解開始</div><h1>注意力與學習</h1><p class="translation-subtitle">理解序列模型如何找出重要資訊</p><div class="translation-rule"></div><h2>摘要</h2><p>注意力機制讓模型在處理資訊時，將更多權重分配給與目前任務相關的內容，而不是同等看待所有輸入。</p></div><div class="selection-tip"><span data-icon="link"></span><span>選取左側英文，對照這裡的中文意思</span><kbd>Space</kbd><span class="tip-speech">發音</span></div></section></div>
-   <aside class="notebook" id="notebook" hidden aria-label="閱讀筆記"><div class="notebook-header"><div><span class="eyebrow">YOUR READING NOTES</span><h2>讓理解留下來<span class="tiny-leaf">↗</span></h2></div><button class="icon-button" data-action="notes" aria-label="關閉筆記"><span data-icon="close"></span></button></div><div class="notebook-intro"><span data-icon="notebook"></span>依照你的閱讀架構，逐步整理想法。</div><div class="notebook-body" id="notebook-body"></div><div class="notebook-bottom"><span id="save-status"><i class="status-dot"></i>筆記自動儲存</span><button class="button quiet" data-action="export-notes"><span data-icon="download"></span>匯出筆記</button></div></aside>
-  </div>
-  <footer class="statusbar"><span><i class="status-dot"></i><span id="reader-status">專注閱讀模式</span></span><span class="statusbar-center">一篇論文，一點新的理解。</span><button data-action="help"><span data-icon="keyboard"></span>操作提示</button></footer>
- </main>
- <input type="file" id="pdf-input" accept="application/pdf,.pdf" hidden>
- <div class="selection-popover" id="selection-popover" hidden><div class="popover-head"><span class="eyebrow" id="word-label">WORD LOOKUP</span><button class="icon-button small" data-action="close-selection" aria-label="關閉查詞"><span data-icon="close"></span></button></div><div class="word-row"><strong id="selected-word"></strong><button class="icon-button" data-action="speak" aria-label="朗讀選取文字"><span data-icon="volume"></span></button></div><p id="word-meaning"></p><div class="popover-actions"><button data-action="highlight-selection"><span data-icon="highlight"></span>畫重點</button><button data-action="quote"><span data-icon="plus"></span>加入筆記</button></div><div class="popover-foot"><kbd>Space</kbd> 聆聽英文發音</div></div>
- <dialog id="comment-dialog"><form method="dialog" id="comment-form"><div class="dialog-heading"><span data-icon="comment"></span><h2>加一則原文註解</h2></div><p>記下想法、疑問，或用自己的話重述。</p><textarea id="comment-text" rows="4" maxlength="500" placeholder="我在這裡想到…" required></textarea><div class="dialog-actions"><button type="button" class="button quiet" data-action="cancel-comment">取消</button><button type="submit" class="button primary">儲存註解</button></div></form></dialog>
- <dialog id="export-dialog"><div class="dialog-heading"><span data-icon="download"></span><h2>帶走你的閱讀成果</h2></div><p>下載原文 PDF，包含你畫的重點與文字註解。</p><div class="export-info">註記會固定在頁面上，下載後無法在其他閱讀器中單獨編輯。完整筆記可另外匯出為 Markdown。</div><div class="dialog-actions"><button class="button quiet" data-action="cancel-export">取消</button><button class="button primary" data-action="confirm-export" id="confirm-export">下載註記 PDF</button></div></dialog>
- <dialog id="help-dialog"><div class="dialog-heading"><span data-icon="keyboard"></span><h2>你的閱讀工具</h2></div><ul class="help-list"><li><strong>調整欄寬</strong><span>拖曳中間分隔線；也可聚焦後按左右鍵。</span></li><li><strong>查字與發音</strong><span>選取英文後按空白鍵，或點喇叭。</span></li><li><strong>畫重點</strong><span>選取原文，再點「畫重點」。</span></li><li><strong>文字註解</strong><span>選擇註解工具，再點原文位置。</span></li><li><strong>資料保存</strong><span>筆記留在此瀏覽器；下次重新匯入同一 PDF 可接續。清除瀏覽器資料會移除筆記，請定期匯出。</span></li></ul><div class="dialog-actions"><button class="button primary" data-action="close-help">開始閱讀</button></div></dialog>
- <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
- <script src="/vendor/pdf-lib.min.js"></script><script type="module" src="/app.js"></script>
+  <header class="compact-header">
+    <span class="compact-brand" aria-label="Paperleaf">p<span>↗</span></span>
+    <div class="document-identity"><span id="document-title">Attention and Learning</span><span id="demo-badge" class="demo-label">DEMO</span></div>
+    <div class="header-actions">
+      <button class="button quiet" data-action="upload" aria-label="匯入 PDF"><span data-icon="upload"></span><span>匯入 PDF</span></button>
+      <button class="button quiet" id="notes-toggle" data-action="notes" aria-label="閱讀筆記" aria-expanded="false"><span data-icon="notebook"></span><span>筆記</span><span class="count" id="notes-count">0</span></button>
+      <button class="button quiet" data-action="export" aria-label="下載註記 PDF"><span data-icon="download"></span><span>下載</span></button>
+    </div>
+  </header>
+  <main class="app-shell">
+    <section class="reader-toolbar" aria-label="閱讀工具">
+      <div class="toolbar-group">
+        <button class="icon-button" data-action="prev" aria-label="上一頁"><span data-icon="chevron-left"></span></button>
+        <label class="page-input"><input id="page-input" type="number" min="1" value="1" aria-label="目前頁碼"><span>/ <span id="page-total">3</span></span></label>
+        <button class="icon-button" data-action="next" aria-label="下一頁"><span data-icon="chevron-right"></span></button>
+        <span class="toolbar-divider"></span><button class="zoom-label" data-action="zoom-reset" id="zoom-label" title="符合欄寬；Ctrl＋滾輪縮放">100%</button>
+      </div>
+      <div class="tool-palette" role="group" aria-label="註記工具">
+        <button class="tool active" data-tool="select" aria-label="選取文字" aria-pressed="true" title="選取文字"><span data-icon="cursor"></span></button>
+        <button class="tool" data-tool="highlight" aria-label="螢光筆" aria-pressed="false" title="螢光筆"><span data-icon="highlight"></span><span class="color-stroke" id="highlight-indicator"></span></button>
+        <label class="color-control" title="螢光筆顏色"><input type="color" id="highlight-color" value="#ffe66d" aria-label="螢光筆顏色"></label>
+        <span class="toolbar-divider"></span>
+        <button class="tool text-tool" data-tool="text" aria-label="加入文字" aria-pressed="false" title="直接在頁面輸入文字">T</button>
+        <label class="color-control" title="文字顏色"><input type="color" id="text-color" value="#c03632" aria-label="文字顏色"></label>
+        <label class="font-size-control"><input id="font-size" type="number" min="6" max="96" value="14" step="1" aria-label="文字大小"><span>pt</span></label>
+        <button class="tool" data-action="quote" aria-label="將選取文字加入筆記" title="將選取文字加入筆記"><span data-icon="notebook"></span></button>
+        <span class="toolbar-divider"></span><button class="tool" data-action="undo" aria-label="復原" title="復原"><span data-icon="undo"></span></button>
+      </div>
+      <div id="reading-mode" role="group" aria-label="閱讀版面">
+        <button type="button" data-reading-mode="en-left" aria-label="雙欄：英文在左，中文在右" title="雙欄：英文在左，中文在右" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16M6 8h3M6 11h3M15 8h3M15 11h3"/></svg></button>
+        <button type="button" data-reading-mode="en-only" aria-label="僅英文" title="僅英文" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 16 4-8 4 8M9.5 13h5"/></svg></button>
+        <button type="button" data-reading-mode="zh-only" aria-label="僅中文" title="僅中文" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M12 6v12M8 9h8v6H8z"/></svg></button>
+      </div>
+      <div class="translation-actions"><button id="translate-start" type="button">翻譯全文</button><button id="azure-settings" type="button">Gemini 設定</button></div>
+      <span class="speech-hint"><kbd>Space</kbd> 選字發音</span>
+    </section>
+    <section class="view-toolbar" aria-label="翻譯進度"><span id="translation-progress" role="status" aria-live="polite"></span></section>
+    <div class="workspace" id="workspace">
+      <div class="reading-panes" id="reading-panes">
+        <section class="pane original-pane" id="original-pane">
+          <div class="pane-heading"><span>原文</span><span class="pane-page" id="reader-status" role="status">正在載入…</span></div>
+          <div class="pdf-scroll" id="pdf-scroll" tabindex="0" aria-label="原文連續閱讀區"><div id="pdf-pages"></div></div>
+        </section>
+        <div class="splitter" id="splitter" tabindex="0" role="separator" aria-label="調整原文與翻譯欄寬" aria-orientation="vertical" aria-valuemin="25" aria-valuemax="75" aria-valuenow="55"><span></span></div>
+        <section class="pane translation-pane" id="translation-pane"><div class="pane-heading"><span>繁體中文翻譯</span><span class="lang-label" id="translation-page">第 1 頁</span></div><div class="translation-scroll" id="translation-content" tabindex="0" aria-label="中文翻譯閱讀區"></div></section>
+      </div>
+      <aside class="notebook" id="notebook" hidden aria-label="閱讀筆記">
+        <div class="notebook-header"><h2>閱讀筆記</h2><button class="icon-button" data-action="notes" aria-label="關閉筆記"><span data-icon="close"></span></button></div>
+        <div class="notebook-body" id="notebook-body"></div>
+        <div class="notebook-bottom"><span id="save-status">筆記自動儲存</span><button class="button quiet" data-action="export-notes"><span data-icon="download"></span>匯出筆記</button></div>
+      </aside>
+    </div>
+  </main>
+  <input type="file" id="pdf-input" accept="application/pdf,.pdf" hidden>
+  <dialog id="export-dialog"><div class="dialog-heading"><span data-icon="download"></span><h2>下載註記 PDF</h2></div><p>保留原文、螢光筆顏色與頁面文字。</p><div class="export-info">註記會固定在 PDF 頁面上。下載後無法在其他閱讀器中單獨編輯；完整筆記可另外匯出為 Markdown。</div><div class="dialog-actions"><button class="button quiet" data-action="cancel-export">取消</button><button class="button primary" data-action="confirm-export" id="confirm-export">下載</button></div></dialog>
+  <dialog id="azure-dialog"><form id="azure-form">
+    <h2>Gemini 翻譯設定</h2><p>使用 Gemini 3.5 Flash-Lite（3.1 服務異常時的備援）。僅傳送論文文字；金鑰及翻譯快取存放在本機。</p>
+    <label>金鑰<input id="azure-key" type="password" required autocomplete="off" placeholder="貼上 Gemini API 金鑰"></label>
+    <label class="azure-confirm"><input id="azure-f0" type="checkbox" required>我已確認此金鑰的 Google AI Studio 專案為 Free Tier，未啟用付費帳務</label>
+    <p class="azure-footnote">免費額度用完會暫停。實際計費取決於金鑰所屬專案，網站無法辨識其帳務層級。免費層內容可能用於改善 Google 產品；請勿提交機密資料。</p>
+    <p><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">取得 Gemini API 金鑰</a></p>
+    <p id="azure-message" role="status"></p><div class="dialog-actions"><button id="azure-close" type="button" class="button quiet">關閉</button><button id="azure-save" type="submit" class="button primary">儲存並測試連線</button></div>
+  </form></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <script src="./vendor/pdf-lib.min.js"></script><script type="module" src="./app.js"></script>
 </body></html>

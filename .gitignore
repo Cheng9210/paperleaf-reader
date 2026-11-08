@@ -3,4 +3,8 @@ node_modules/
 .sites-runtime/
 artifacts/
 tmp/
+outputs/
 *.zip
+.local/
+.env
+.env.*

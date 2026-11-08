@@ -1,3 +1,57 @@
-import{demoPages,glossary}from'./demo.js';import{escapeHtml}from'./core.js';import{icon}from'./icons.js';
-export function renderTranslation(page,isDemo){const container=document.querySelector('#translation-content');if(!isDemo){container.innerHTML=`<div class="translation-notice">${icon('sparkles')}AI 翻譯尚未啟用</div><div class="empty-translation">${icon('leaf')}<h2>先與原文相遇</h2><p>你的論文已在左側準備好。<br>現在可以選字發音、畫重點與做筆記。<br>翻譯與閱讀分析將在接上服務後啟用。</p></div>`;return;}const d=demoPages[page-1],title=['注意力與學習','從直覺走向實驗','先讀證據，再問為什麼'][page-1];container.innerHTML=`<div class="translation-notice">${icon('sparkles')}示範譯文 <span class="notice-separator">·</span> AI 翻譯尚未啟用</div><div class="translation-eyebrow">READING NOTES / 0${page}</div><h1>${title}</h1><p class="translation-subtitle">${['理解序列模型如何找出重要資訊','方法、比較，以及謹慎的解讀','研究限制與閱讀檢查清單'][page-1]}</p><div class="translation-rule"></div>${d.sections.map((s,i)=>`<h2>${s.zhHeading}<small>${s.heading.replace(/^\d[.\d]*\s+/,'')}</small></h2><p class="translated-block" id="translation-${s.id}">${s.zh}</p>${page===1&&i===0?'<div class="keywords"><span class="keyword">注意力機制</span><span class="keyword">序列模型</span><span class="keyword">上下文</span></div>':''}`).join('')}<div class="margin-callout"><strong>${icon('leaf')}留一點空間，給自己的理解</strong><p>這段論述的證據在哪裡？選取原文，留下你的第一個問題。</p></div>`;}
-export function lookupDemo(text,page,context){const key=text.toLowerCase().replace(/[^a-z\s]/g,'').trim();const entry=key==='attention mechanisms'?glossary.attentionMechanisms:glossary[key]||glossary[key.replace(/s$/,'')];const d=demoPages[page-1];const match=d.sections.find(s=>context?.trim()&&s.text.includes(context.trim()))||d.sections.find(s=>s.text.toLowerCase().includes(key));document.querySelectorAll('.translated-block').forEach(el=>{el.classList.remove('aligned');el.querySelectorAll('mark').forEach(m=>m.replaceWith(m.textContent));});if(match){const el=document.querySelector('#translation-'+match.id);el.classList.add('aligned');if(entry&&match.zh.includes(entry[0]))el.innerHTML=escapeHtml(match.zh).replace(escapeHtml(entry[0]),`<mark>${escapeHtml(entry[0])}</mark>`);el.scrollIntoView({behavior:'smooth',block:'center'});}return entry?`${entry[0]} · ${entry[1]}（示範詞義）`:match?'已定位對應段落。這個詞尚未收錄於示範詞庫；完整查詞將在接上服務後提供。':'完整查詞尚未啟用；仍可發音、畫重點與加入筆記。';}
+import {demoPages,glossary} from './demo.js';
+import {escapeHtml} from './core.js';
+
+const terms = {
+  'attention mechanisms':'注意力機制', 'attention mechanism':'注意力機制',
+  'sequence models':'序列模型','sequence model':'序列模型',
+  'input sequence':'輸入序列','random seeds':'隨機種子','training examples':'訓練樣本',
+  'evaluation set':'評估資料集','causal explanation':'因果解釋',
+  'query':'查詢','keys':'鍵','values':'值',
+  'word':'單字','words':'單字','sentence':'句子','sentences':'句子',
+  'input':'輸入','positions':'位置','experiment':'實驗','context':'上下文',
+  'evidence':'證據','claim':'主張','claims':'主張','reader':'讀者',
+  'pronoun':'代名詞','subject':'主詞','information':'資訊',
+  'representations':'表示','representation':'表示','weights':'權重','weight':'權重',
+  'attention':'注意力','model':'模型','models':'模型','accuracy':'準確率',
+};
+
+export function renderTranslation(page,isDemo) {
+  const container=document.querySelector('#translation-content');
+  if (!isDemo) {
+    container.innerHTML='<div class="translation-notice">翻譯服務尚未啟用</div><div class="empty-translation"><h2>翻譯待啟用</h2><p>目前可閱讀原文與做筆記。<br>接上翻譯服務後，這裡會顯示譯文。</p></div>';
+    return;
+  }
+  const d=demoPages[page-1];
+  container.innerHTML=`<div class="translation-notice">示範譯文 · 第 ${page} 頁</div><h1>${['注意力與學習','從直覺走向實驗','先讀證據，再問為什麼'][page-1]}</h1>${d.sections.map(s=>`<h2>${s.zhHeading}</h2><p class="translated-block" id="translation-${s.id}">${s.zh}</p>`).join('')}`;
+}
+
+export function resolveDemoAlignment(text,page,context='') {
+  const key=text.toLowerCase().replace(/^[^a-z]+|[^a-z]+$/g,'').replace(/\s+/g,' ');
+  const target=terms[key] || glossary[key]?.[0];
+  if (!target) return null;
+  const sections=demoPages[page-1]?.sections || [];
+  const normal=s=>s.toLowerCase().replace(/\s+/g,' ').trim();
+  const current=sections.find(s=>context && normal(s.text).includes(normal(context)));
+  const candidates=current?[current]:sections;
+  const section=candidates.find(s=>new RegExp('\\b'+key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','i').test(s.text)&&s.zh.includes(target));
+  if (!section) return null;
+  const start=section.zh.indexOf(target);
+  return {sectionId:section.id,target,start,end:start+target.length};
+}
+
+export function clearTranslationSelection() {
+  document.querySelectorAll('#translation-content mark').forEach(mark=>mark.replaceWith(mark.textContent));
+}
+export function alignTranslation(text,page,context) {
+  clearTranslationSelection();
+  const match=resolveDemoAlignment(text,page,context);
+  if (!match) return false;
+  const element=document.querySelector('#translation-'+match.sectionId);
+  if (!element) return false;
+  const content=element.textContent;
+  element.innerHTML=escapeHtml(content.slice(0,match.start))+'<mark>'+escapeHtml(content.slice(match.start,match.end))+'</mark>'+escapeHtml(content.slice(match.end));
+  const mark=element.querySelector('mark'),scroller=document.querySelector('#translation-content');
+  const r=mark.getBoundingClientRect(),bounds=scroller.getBoundingClientRect();
+  if(r.top<bounds.top||r.bottom>bounds.bottom)scroller.scrollBy({top:r.top-bounds.top-bounds.height*.35,behavior:'smooth'});
+  return true;
+}
