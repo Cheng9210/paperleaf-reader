@@ -4,7 +4,7 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="雙欄論文閱讀、連續捲動、閱讀筆記與 PDF 註記。"><title>Paperleaf · 論文閱讀室</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%233b6154'/%3E%3Cpath d='M9 8h10a5 5 0 0 1 0 10h-6v7H9zm4 4v6l9-6' fill='%23f3f1e8'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="./vendor/pdf_viewer.css"><link rel="stylesheet" href="./styles.css"><link rel="stylesheet" href="./reader.css"><link rel="stylesheet" href="./theme.css">
+  <link rel="stylesheet" href="./vendor/pdf_viewer.css"><link rel="stylesheet" href="./styles.css"><link rel="stylesheet" href="./reader.css"><link rel="stylesheet" href="./theme.css?v=20261109-fullpaper-1">
 </head>
 <body>
   <header class="compact-header">
@@ -43,7 +43,7 @@
       <div class="translation-actions"><button id="translate-start" type="button">翻譯全文</button><button id="azure-settings" type="button">Gemini 設定</button></div>
       <span class="speech-hint"><kbd>Space</kbd> 選字發音</span>
     </section>
-    <section class="view-toolbar" aria-label="翻譯進度"><span id="translation-progress" role="status" aria-live="polite"></span></section>
+    <section class="view-toolbar" aria-label="翻譯進度"><progress id="translation-progress-bar" max="1" value="0" aria-label="全文翻譯進度" hidden></progress><span id="translation-progress" role="status" aria-live="polite"></span></section>
     <div class="workspace" id="workspace">
       <div class="reading-panes" id="reading-panes">
         <section class="pane original-pane" id="original-pane">
@@ -51,7 +51,7 @@
           <div class="pdf-scroll" id="pdf-scroll" tabindex="0" aria-label="原文連續閱讀區"><div id="pdf-pages"></div></div>
         </section>
         <div class="splitter" id="splitter" tabindex="0" role="separator" aria-label="調整原文與翻譯欄寬" aria-orientation="vertical" aria-valuemin="25" aria-valuemax="75" aria-valuenow="55"><span></span></div>
-        <section class="pane translation-pane" id="translation-pane"><div class="pane-heading"><span>繁體中文翻譯</span><span class="lang-label" id="translation-page">第 1 頁</span></div><div class="translation-scroll" id="translation-content" tabindex="0" aria-label="中文翻譯閱讀區"></div></section>
+        <section class="pane translation-pane" id="translation-pane"><div class="pane-heading"><span>繁體中文翻譯</span><span class="lang-label" id="translation-page">第 1 頁</span></div><div id="translation-pending" class="translation-pending" hidden><div class="translation-pending-card"><span class="translation-pending-eyebrow">PAPERLEAF · TRANSLATION</span><h2 id="translation-pending-label">正在準備全文翻譯</h2><p>全文完成後會一次顯示中文版；原文可先閱讀與註記。</p><progress id="translation-pending-bar" max="1" value="0" aria-label="全文翻譯進度"></progress><p id="translation-pending-count" role="status" aria-live="polite">已完成 0 頁</p><p id="translation-pending-error" hidden></p><button id="translation-pending-action" type="button">繼續翻譯</button></div></div><div class="translation-scroll" id="translation-content" tabindex="0" aria-label="中文翻譯閱讀區"></div></section>
       </div>
       <aside class="notebook" id="notebook" hidden aria-label="閱讀筆記">
         <div class="notebook-header"><h2>閱讀筆記</h2><button class="icon-button" data-action="notes" aria-label="關閉筆記"><span data-icon="close"></span></button></div>
@@ -71,5 +71,5 @@
     <p id="azure-message" role="status"></p><div class="dialog-actions"><button id="azure-close" type="button" class="button quiet">關閉</button><button id="azure-save" type="submit" class="button primary">儲存並測試連線</button></div>
   </form></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script src="./vendor/pdf-lib.min.js"></script><script type="module" src="./app.js"></script>
+  <script src="./vendor/pdf-lib.min.js"></script><script type="module" src="./app.js?v=20261109-fullpaper-1"></script>
 </body></html>

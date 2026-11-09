@@ -1,5 +1,5 @@
 import {initReadingModes} from './lib/reading-modes.js';
-import {AzureReader} from './lib/azure-reader.js';
+import {AzureReader} from './lib/azure-reader.js?v=20261109-fullpaper-1';
 import {selectionParts} from './lib/pdf-text.js';
 import {hydrateIcons} from './lib/icons.js';
 import {loadPdf} from './lib/pdf.js';
@@ -107,8 +107,9 @@ async function openDocument(bytes,name,demo=false){const serial=++loadSerial;sta
   const [doc,key]=await Promise.all([loadPdf(bytes),documentKey(bytes)]);if(serial!==loadSerial){doc.destroy();return;}
   const previous=state.doc;let data;try{data=readDocument(key);}catch{data={notes:{quotes:[]},annotations:[]};toast('舊筆記無法讀取，請保留先前匯出的備份。');}
   Object.assign(state,{doc,key,bytes,name,demo,page:1,notes:data.notes,annotations:migrateAnnotations(data.annotations),history:[],selection:null,selected:null});state.notes.quotes??=[];
-  translator.open(doc,key,demo);
+  const translationReady=translator.open(doc,key,demo);
   $('#document-title').textContent=name;$('#demo-badge').hidden=!demo;$('#translation-content').replaceChildren();pageChanged(1);renderNotebook(state.notes,demo);$('#notes-count').textContent=noteCount(state.notes);setTool('select');await document.fonts.load('14px "Paperleaf Noto Sans TC"');await viewer.open(doc);drawAll();$('#reader-status').textContent='';if(previous)await previous.destroy();
+  if(!demo&&serial===loadSerial){await translationReady;await translator.refresh();if(serial===loadSerial&&!translator.revealed)void translator.start();}
 }catch(error){toast(error.name==='PasswordException'?'PDF 有密碼保護，請先解鎖後再匯入。':'無法讀取 PDF，請確認檔案完整。');$('#reader-status').textContent='讀取失敗';console.error(error);}finally{if(serial===loadSerial)state.busy=false;}}
 function toggleNotes(){const open=$('#notebook').hidden;$('#notebook').hidden=!open;$('#notes-toggle').setAttribute('aria-expanded',open);document.body.classList.toggle('notebook-open',open);if(open)renderNotebook(state.notes,state.demo);}
 async function exportPdf(){if(!state.bytes)return;const button=$('#confirm-export');button.disabled=true;button.textContent='正在製作…';try{const bytes=await exportAnnotatedPdf(state.bytes,structuredClone(state.annotations));downloadFile(bytes,state.name.replace(/\.pdf$/i,'')+'_註記.pdf','application/pdf');$('#export-dialog').close();toast('PDF 已準備好，請查看下載。');}catch(error){toast('PDF 匯出失敗，請再試一次。');console.error(error);}finally{button.disabled=false;button.textContent='下載';}}

@@ -1,10 +1,10 @@
 import {extractPageBlocks,selectionMatch} from './pdf-text.js';
 import {TranslationStore} from './translation-store.js';
-import {renderPdfTranslation,highlightSourceSentences} from './translation-layout.js';
+import {renderPdfTranslation,highlightSourceSentences} from './translation-layout.js?v=20261109-fullpaper-1';
 import {untranslatedEnglish} from './translation-quality.js';
 import {displayTranslation} from './reference-display.js';
 import {renderTranslation,alignTranslation} from './translation.js';
-import {createBrowserGemini} from './browser-gemini.js';
+import {createBrowserGemini} from './browser-gemini.js?v=20261109-fullpaper-1';
 const $=s=>document.querySelector(s);
 const browserGemini=globalThis.location?.hostname?.endsWith('github.io')?createBrowserGemini():null;
 async function api(url,body){if(browserGemini){if(url.endsWith('/status'))return browserGemini.status();if(url.endsWith('/config'))return browserGemini.configure(body);if(url.endsWith('/translate'))return browserGemini.translate(body);}
@@ -13,15 +13,22 @@ export class AzureReader{
  constructor(){
   this.store=new TranslationStore();this.generation=0;this.records=new Map();this.page=1;this.running=false;
   $('#translation-content').addEventListener('scroll',()=>this.scrollChanged(),{passive:true});
-  $('#azure-settings').onclick=()=>this.settings();$('#translate-start').onclick=()=>this.running?this.pause():this.start();
+  $('#azure-settings').onclick=()=>this.settings();$('#translate-start').onclick=()=>this.running?this.pause():this.start();$('#translation-pending-action').onclick=()=>this.start();
   $('#azure-close').onclick=()=>$('#azure-dialog').close();
-  $('#azure-form').onsubmit=async e=>{e.preventDefault();const button=$('#azure-save');button.disabled=true;$('#azure-message').textContent='正在驗證金鑰…';try{this.status=await api('/api/gemini/config',{key:$('#azure-key').value,freeTierConfirmed:$('#azure-f0').checked});$('#azure-key').value='';$('#azure-message').textContent='金鑰已儲存在本機，下次不用重填。關閉設定後，按「翻譯全文」開始。';this.error='';this.showPage(this.page);}catch(error){$('#azure-message').textContent=error.message;}finally{button.disabled=false;}};
+  $('#azure-form').onsubmit=async e=>{e.preventDefault();const button=$('#azure-save');button.disabled=true;$('#azure-message').textContent='正在驗證金鑰…';try{this.status=await api('/api/gemini/config',{key:$('#azure-key').value,freeTierConfirmed:$('#azure-f0').checked});$('#azure-key').value='';this.error='';$('#azure-dialog').close();this.showPage(this.page);if(this.doc&&!this.demo&&!this.revealed)void this.start();}catch(error){$('#azure-message').textContent=error.message;}finally{button.disabled=false;}};
   this.refresh();
  }
  async refresh(){try{this.status=await api('/api/gemini/status');}catch(e){this.error=e.message;}if(this.doc)this.showPage(this.page);}
- open(doc,key,demo){clearTimeout(this.zoomTimer);this.zoomPreview=null;this.generation++;this.running=false;this.workerGeneration=null;this.doc=doc;this.key=key;this.demo=demo;this.enabled=false;this.records=new Map();this.selection=null;this.error='';this.page=1;this.zoom=1;this.committedZoom=1;this.storageWarning='';this.controls();const generation=this.generation;
+ open(doc,key,demo){clearTimeout(this.zoomTimer);this.zoomPreview=null;this.generation++;this.running=false;this.workerGeneration=null;this.doc=doc;this.key=key;this.demo=demo;this.enabled=false;this.revealed=!!demo;this.records=new Map();this.selection=null;this.error='';this.page=1;this.zoom=1;this.committedZoom=1;this.storageWarning='';this.controls();const generation=this.generation;
  this.restoration=(async()=>{const records=await this.store.load(key);if(generation!==this.generation)return;this.records=records;this.enabled=records.size>0;if(!this.store.persistent)this.storageWarning='瀏覽器無法儲存進度；關閉後可能遺失。';this.showPage(this.page);})();return this.restoration;}
- controls(){const done=[...this.records.values()].filter(x=>x.done).length,complete=!!this.doc&&done===this.doc.numPages;$('#translate-start').textContent=this.running?'暫停':complete?'翻譯完成':this.enabled?'繼續翻譯':'翻譯全文';$('#translate-start').disabled=complete;$('#translate-start').hidden=complete;const progress=$('#translation-progress');if(progress){progress.textContent=(this.running?'翻譯中 · ':'')+'已完成 '+done+' / '+(this.doc?.numPages||0)+' 頁 · '+[...this.records.values()].reduce((n,r)=>n+r.blocks.filter(b=>b.translated!==undefined).length,0)+' 段'+(this.storageWarning?' · '+this.storageWarning:'')+(this.error?' · '+this.error:'');progress.hidden=complete&&!this.storageWarning&&!this.error;}$('#translate-start').title=`已完成 ${done} / ${this.doc?.numPages||0} 頁`;}
+ controls(){
+  const total=this.doc?.numPages||0,done=[...this.records.values()].filter(x=>x.done).length,complete=!!total&&done===total;
+  this.revealed=!!this.demo||complete;
+  const start=$('#translate-start');start.textContent=this.running?'暫停':complete?'翻譯完成':this.enabled?'繼續翻譯':'翻譯全文';start.disabled=complete;start.hidden=complete;start.title=`已完成 ${done} / ${total} 頁`;
+  const progress=$('#translation-progress');if(progress){progress.textContent=(this.error?'翻譯暫停 · ':this.running?'翻譯中 · ':'')+'已完成 '+done+' / '+total+' 頁 · '+[...this.records.values()].reduce((n,r)=>n+r.blocks.filter(b=>b.translated!==undefined).length,0)+' 段'+(this.storageWarning?' · '+this.storageWarning:'')+(this.error?' · '+this.error:'');progress.hidden=complete&&!this.storageWarning&&!this.error;}
+  for(const selector of ['#translation-progress-bar','#translation-pending-bar']){const bar=$(selector);if(bar){bar.max=total||1;bar.value=done;bar.hidden=selector==='#translation-progress-bar'&&(this.demo||complete||!total);}}
+  const pending=$('#translation-pending');if(pending){pending.hidden=this.revealed;$('#translation-pending-label').textContent=this.error?'翻譯已暫停':this.running?'正在翻譯整篇論文':'準備翻譯整篇論文';$('#translation-pending-count').textContent=`已完成 ${done} / ${total} 頁（${total?Math.round(done/total*100):0}%）`;const error=$('#translation-pending-error');error.textContent=this.error||'';error.hidden=!this.error;const action=$('#translation-pending-action');action.hidden=this.running||complete;action.textContent=this.status?.configured?'繼續翻譯':'設定 Gemini 翻譯';}
+ }
  pause(){this.running=false;this.showPage(this.page);}
  async settings(){await this.refresh();$('#azure-message').textContent=this.status?.configured?`金鑰已儲存在本機，無需重填（${this.status.model}）。免費額度以 Google AI Studio 專案顯示為準。`:(this.error||'尚未連線。請填入 Gemini Free Tier 專案的 API 金鑰。');$('#azure-key').placeholder=this.status?.configured?'已儲存；僅更換金鑰時填寫':'貼上 Gemini API 金鑰';$('#azure-dialog').showModal();}
  scrollChanged(){
@@ -59,8 +66,9 @@ export class AzureReader{
   }finally{if(token===this.sequenceToken){this.appending=false;this.scrollChanged();}}
  }
  async showPage(page){this.page=page;this.controls();const root=$('#translation-content'),serial=this.renderSerial=(this.renderSerial||0)+1,generation=this.generation,token=this.sequenceToken=(this.sequenceToken||0)+1;this.sequenceStart=page;this.sequenceEnd=page;this.appending=false;this.prepending=false;this.appendFailure=null;this.prependFailure=null;
-  if(!this.enabled&&this.demo){root.classList.add('demo-translation');renderTranslation(page,true);return;}
+  if(!this.enabled&&this.demo){root.hidden=false;root.classList.add('demo-translation');renderTranslation(page,true);return;}
   root.classList.remove('demo-translation');
+  root.hidden=!this.revealed;const pending=$('#translation-pending');if(pending)pending.hidden=this.revealed;if(!this.revealed){root.replaceChildren();return;}
   try{
    if(this.restoration)await this.restoration;if(generation!==this.generation||serial!==this.renderSerial)return;
    const record=await this.preparePage(page);if(!record||serial!==this.renderSerial||generation!==this.generation)return;
