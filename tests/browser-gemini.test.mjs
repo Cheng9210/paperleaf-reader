@@ -22,3 +22,10 @@ test('static Gemini rejects unverified keys and incomplete model output',async()
  await assert.rejects(client.configure({key:'a'.repeat(39),freeTierConfirmed:true}),/額度/);
  assert.equal((await client.status()).configured,false);
 });
+
+test('successive static requests have a short pacing delay',async()=>{
+ const waits=[],storage=memory(),client=createBrowserGemini({storage,pause:async ms=>waits.push(ms),fetchImpl:async(url,init)=>success(JSON.parse(JSON.parse(init.body).contents[0].parts[0].text))});
+ await client.configure({key:'a'.repeat(39),freeTierConfirmed:true});
+ await client.translate({texts:['Design inspiration.']});
+ assert.ok(waits[1]>0&&waits[1]<=6000,`unexpected delay ${waits[1]}ms`);
+});

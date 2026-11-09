@@ -11,6 +11,15 @@ test('sentence translations preserve paragraph context and exact fallback offset
  assert.equal(results[0].translated,'它有效。這需要時間。');
  assert.deepEqual(results[0].sentences,[{start:0,end:9,targetStart:0,targetEnd:4},{start:10,end:24,targetStart:4,targetEnd:10}]);
 });
+test('local Gemini uses the same short pacing delay',async t=>{
+ const dir=await mkdtemp(path.join(os.tmpdir(),'paperleaf-gemini-'));t.after(()=>rm(dir,{recursive:true,force:true}));const waits=[];
+ const service=createGeminiService({directory:dir,pause:async ms=>waits.push(ms),fetchImpl:async(url,init)=>{
+  const inputs=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);
+  return new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({results:inputs.map(({id})=>({id,translated:'設計靈感。',pairs:[]}))})}]}}]}));
+ }});
+ await service.configure({key:'a'.repeat(39),freeTierConfirmed:true});await service.translate({texts:['Design inspiration.']});
+ assert.ok(waits[1]>0&&waits[1]<=6000,`unexpected delay ${waits[1]}ms`);
+});
 test('configuration uses the supported Flash-Lite endpoint without legacy thinking budget',async t=>{
  const dir=await mkdtemp(path.join(os.tmpdir(),'paperleaf-gemini-'));t.after(()=>rm(dir,{recursive:true,force:true}));let request;
  const service=createGeminiService({directory:dir,pause:async()=>{},fetchImpl:async(url,init)=>{request={url,body:JSON.parse(init.body)};return new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({results:[{id:0,translated:'你好。',pairs:[]}]})}]}}]}));}});
