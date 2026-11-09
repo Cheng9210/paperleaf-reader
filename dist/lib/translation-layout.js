@@ -1,6 +1,6 @@
 import {readingBlockRects,sourceTextRect} from './page-geometry.js';
 import {displayTranslation} from './reference-display.js';
-export function translationPlaceholder({running=false,error=''}={}){return error?'尚未翻譯（服務失敗）':running?'等待翻譯…':'尚未翻譯（已暫停）';}
+export function translationPlaceholder({running=false,error=''}={}){return error?'尚未翻譯':running?'等待翻譯…':'尚未翻譯（已暫停）';}
 export function createInlineDisclosure(index,box,viewport,text){
  const detail=document.createElement('details');detail.className='translation-more';detail.dataset.detailIndex=index;
  detail.style.left=(box.x+box.width)/viewport.width*100+'%';detail.style.top=(box.y+box.height)/viewport.height*100+'%';

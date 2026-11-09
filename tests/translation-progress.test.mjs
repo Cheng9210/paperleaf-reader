@@ -2,6 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {AzureReader} from '../dist/lib/azure-reader.js';
 function reader(extra={}){return Object.assign(Object.create(AzureReader.prototype),{generation:1,doc:{numPages:2},page:2,key:'paper',status:{configured:true},records:new Map([[1,{blocks:[{text:'First'}],done:false}],[2,{blocks:[{text:'Second'}],done:false}]]),controls(){},showPage(){},...extra});}
+test('the progress bar shows the actual sanitized translation error',()=>{
+ const original=globalThis.document,progress={},button={};globalThis.document={querySelector:selector=>selector==='#translation-progress'?progress:button};
+ try{const r=reader({error:'Gemini 免費額度已達上限。',controls:AzureReader.prototype.controls});r.controls();assert.match(progress.textContent,/Gemini 免費額度已達上限/);}finally{globalThis.document=original;}
+});
 test('whole-paper run proceeds in page order and saves each finished batch',async()=>{
  const original=globalThis.fetch, sent=[],saved=[];
  globalThis.fetch=async(url,options)=>{sent.push(JSON.parse(options.body).texts[0]);return new Response(JSON.stringify({results:[{translated:'譯文'}]}));};

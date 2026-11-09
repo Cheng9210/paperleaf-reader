@@ -29,3 +29,46 @@ test('successive static requests have a short pacing delay',async()=>{
  await client.translate({texts:['Design inspiration.']});
  assert.ok(waits[1]>0&&waits[1]<=6000,`unexpected delay ${waits[1]}ms`);
 });
+
+test('an incomplete Gemini reply is retried as smaller sentence groups',async()=>{
+ const calls=[],client=createBrowserGemini({storage:{getItem:()=> 'a'.repeat(39)},pause:async()=>{},fetchImpl:async(url,init)=>{
+  const inputs=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);calls.push(inputs.length);
+  if(inputs.length>2)return new Response(JSON.stringify({candidates:[{finishReason:'MAX_TOKENS',content:{parts:[]}}]}));
+  return new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({results:inputs.map(({id})=>({id,translated:'譯文。',pairs:[]}))})}]}}]}));
+ }});
+ const first=await client.translate({texts:['One. Two. Three. Four.']});
+ assert.equal(first.results[0].translated,'譯文。'.repeat(4));assert.deepEqual(calls,[4,2,2]);
+});
+
+test('malformed word pairs do not discard an otherwise valid translation',async()=>{
+ const client=createBrowserGemini({storage:{getItem:()=> 'a'.repeat(39)},pause:async()=>{},fetchImpl:async()=>new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({results:[{id:0,translated:'第一。',pairs:[null,{}, {source:'One',sourceOccurrence:0,target:'第一',targetOccurrence:0}]}]})}]}}]}))});
+ const result=await client.translate({texts:['One.']});assert.equal(result.results[0].translated,'第一。');assert.equal(result.results[0].alignment,'0:2-0:1');
+});
+
+test('a temporary quota limit waits once, slows later requests, and resumes',async()=>{
+ let calls=0;const waits=[],client=createBrowserGemini({storage:{getItem:()=> 'a'.repeat(39)},pause:async ms=>waits.push(ms),fetchImpl:async(url,init)=>{
+  if(++calls===1)return new Response('{}',{status:429,headers:{'Retry-After':'2'}});
+  return success(JSON.parse(JSON.parse(init.body).contents[0].parts[0].text));
+ }});
+ assert.equal((await client.translate({texts:['Design inspiration.']})).results[0].translated,'設計靈感。');
+ assert.equal(calls,2);assert.ok(waits.some(ms=>ms>=12000));
+ await client.translate({texts:['Another idea.']});
+ assert.ok(waits.some(ms=>ms>6000),`pacing did not adapt: ${waits}`);
+});
+
+test('changing the API key always checks the new key instead of a cached response',async()=>{
+ const storage=memory();let calls=0;const client=createBrowserGemini({storage,pause:async()=>{},fetchImpl:async(url,init)=>++calls===1?success(JSON.parse(JSON.parse(init.body).contents[0].parts[0].text)):new Response('{}',{status:401})});
+ await client.configure({key:'a'.repeat(39),freeTierConfirmed:true});
+ await assert.rejects(client.configure({key:'b'.repeat(39),freeTierConfirmed:true}),/無效/);
+ assert.equal(calls,2);assert.equal((await client.status()).configured,true);
+});
+
+test('rejected English output is requested again on resume',async()=>{
+ let calls=0;const client=createBrowserGemini({storage:{getItem:()=> 'a'.repeat(39)},pause:async()=>{},fetchImpl:async(url,init)=>{
+  const inputs=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);calls++;
+  return new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({results:inputs.map(({id,text})=>({id,translated:calls===1?text:'這篇論文描述設計靈感來源。',pairs:[]}))})}]}}]}));
+ }});
+ const input={texts:['This paper describes the sources of inspiration in design.']};
+ await assert.rejects(client.translate(input),/未翻譯/);
+ assert.equal((await client.translate(input)).results[0].translated,'這篇論文描述設計靈感來源。');assert.equal(calls,2);
+});

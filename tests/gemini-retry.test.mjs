@@ -13,7 +13,7 @@ test('network retries are bounded',async()=>{
  let calls=0;await assert.rejects(fetchWithRetry(async()=>{calls++;throw Error('network');},async()=>{}));assert.equal(calls,3);
 });
 test('failed and paused translations never claim to be translating',()=>{
- assert.equal(translationPlaceholder({running:true,error:'503'}),'尚未翻譯（服務失敗）');
+ assert.equal(translationPlaceholder({running:true,error:'503'}),'尚未翻譯');
  assert.equal(translationPlaceholder({running:false}),'尚未翻譯（已暫停）');
  assert.equal(translationPlaceholder({running:true}),'等待翻譯…');
 });
