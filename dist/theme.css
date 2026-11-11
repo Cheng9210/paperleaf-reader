@@ -80,3 +80,37 @@ dialog{background:#282a2f;color:#ecedf2;border-color:#ffffff20;box-shadow:0 24px
  .view-toolbar{min-height:26px;flex-wrap:nowrap;padding:2px 8px}.reading-mode-label{flex:none}.reader-toolbar #reading-mode{margin-left:auto}.reader-toolbar .translation-actions{flex:none}
  .pane-heading{height:22px}.translation-scroll{padding:10px}.pdf-scroll{padding:8px}
 }
+
+/* Frosted glass for the two reader controls, with a visible surface even
+   when no document pixels happen to sit behind the toolbar. */
+.compact-header,.reader-toolbar{
+ position:relative;
+ background:
+  linear-gradient(112deg,#ffffff12 0%,transparent 32%,#9fbde908 72%,#ffffff0b 100%),
+  linear-gradient(180deg,#404754c9 0%,#292e39d9 55%,#242934e8 100%);
+ -webkit-backdrop-filter:blur(24px) saturate(145%);
+ backdrop-filter:blur(24px) saturate(145%);
+ border-bottom:1px solid #ffffff24;
+ box-shadow:inset 0 1px #ffffff2e,inset 0 -1px #10151e55,0 4px 18px #080b1233;
+}
+.compact-header{z-index:3}
+.reader-toolbar{z-index:2;background:
+ linear-gradient(105deg,#ffffff0e 0%,transparent 38%,#c8d9f00a 75%,#ffffff0a 100%),
+ linear-gradient(180deg,#3b414dc9,#282d37df)}
+.header-actions .button.quiet,.reader-toolbar .icon-button,.reader-toolbar .tool,.reader-toolbar #azure-settings{
+ border:1px solid transparent;border-radius:10px;color:#d5dce8;
+}
+.header-actions .button.quiet:hover,.reader-toolbar .icon-button:hover,.reader-toolbar .tool:hover,.reader-toolbar #azure-settings:hover{
+ background:#ffffff1c;border-color:#ffffff29;color:#fff;box-shadow:inset 0 1px #ffffff24,0 2px 8px #090d1830;
+}
+.reader-toolbar .tool.active,#reading-mode button[aria-pressed="true"]{
+ background:linear-gradient(150deg,#a9c8ff55,#6686bf55);
+ border:1px solid #d3e2ff4d;color:#f3f7ff;
+ box-shadow:inset 0 1px #ffffff5c,inset 0 -1px #273d6940,0 2px 8px #0d172b45;
+}
+#reading-mode{background:#1118245c;border:1px solid #ffffff23;border-radius:13px;box-shadow:inset 0 1px #ffffff14,0 1px 5px #05081033}
+#reading-mode button{border:1px solid transparent;border-radius:9px}
+.reader-toolbar .page-input input,.reader-toolbar .font-size-control input,.reader-toolbar kbd{
+ background:#11182470;border:1px solid #ffffff29;color:#eaf0fa;box-shadow:inset 0 1px 3px #05081035;
+}
+.reader-toolbar .toolbar-divider{background:#dbe8ff35}
