@@ -87,10 +87,10 @@ dialog{background:#252729;border-color:var(--matte-edge)}
 dialog .button.quiet,.notebook .button.quiet{border:1px solid var(--matte-edge);border-radius:999px;background:var(--matte-surface);color:var(--matte-text)}
 dialog .button.quiet:hover,.notebook .button.quiet:hover{background:var(--matte-hover);color:#fff}
 @media(max-width:750px){
- .app-shell{--paper-overlay:70px}
- .app-shell:has(>.view-toolbar:not(:has(#translation-progress[hidden]))){--paper-overlay:96px}
- .reading-panes .pdf-scroll{padding-top:calc(var(--paper-overlay) + 35px)}
- .reading-panes .translation-scroll{padding-top:calc(var(--paper-overlay) + 43px)}
+ .app-shell{--paper-overlay:39px}
+ .app-shell:has(>.view-toolbar:not(:has(#translation-progress[hidden]))){--paper-overlay:65px}
+ .reading-panes .pdf-scroll{padding-top:calc(var(--paper-overlay) + 30px)}
+ .reading-panes .translation-scroll{padding-top:calc(var(--paper-overlay) + 32px)}
  .reader-toolbar .toolbar-group,.reader-toolbar .tool-palette,#reading-mode,.reader-toolbar .translation-actions{flex:0 0 auto}
  .header-actions{gap:3px}
  .header-actions .button.quiet{padding-inline:8px}
