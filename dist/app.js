@@ -1,5 +1,5 @@
 import {initReadingModes} from './lib/reading-modes.js';
-import {AzureReader} from './lib/azure-reader.js?v=20261111-english-retry-1';
+import {AzureReader} from './lib/azure-reader.js?v=20261111-artwork-1';
 import {selectionParts} from './lib/pdf-text.js';
 import {hydrateIcons} from './lib/icons.js';
 import {loadPdf} from './lib/pdf.js';
@@ -10,7 +10,7 @@ import {renderNotebook,noteCount} from './lib/notes.js';
 import {renderTranslation,alignTranslation,clearTranslationSelection} from './lib/translation.js';
 import {dismissCorrespondence} from './lib/selection-lifecycle.js';
 import {exportAnnotatedPdf,downloadFile} from './lib/export.js';
-import {exportTranslatedPdf} from './lib/translated-export.js';
+import {exportTranslatedPdf} from './lib/translated-export.js?v=20261111-artwork-1';
 
 const $=s=>document.querySelector(s);
 const state={doc:null,bytes:null,key:null,name:'',demo:true,page:1,tool:'select',notes:{quotes:[]},annotations:[],history:[],selection:null,selected:null,busy:false};

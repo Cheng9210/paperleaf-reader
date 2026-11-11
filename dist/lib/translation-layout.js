@@ -1,5 +1,6 @@
 import {readingBlockRects,pageBlockRect,sourceTextRect} from './page-geometry.js';
 import {displayTranslation} from './reference-display.js';
+export function translatedBlockTag(block){return block.kind==='heading'&&String(block.text||'').trim().length<=120?'h3':'p';}
 export function translationPlaceholder({running=false,error=''}={}){return error?'尚未翻譯':running?'等待翻譯…':'尚未翻譯（已暫停）';}
 export function createInlineDisclosure(index,box,viewport,text){
  const detail=document.createElement('details');detail.className='translation-more';detail.dataset.detailIndex=index;
@@ -28,8 +29,8 @@ export async function renderPdfTranslation(root,blocks,page,state){
  const canvas=document.createElement('canvas');canvas.className='translation-artwork';canvas.setAttribute('aria-hidden','true');paper.append(canvas);
  const boxes=readingBlockRects(blocks,viewport);
  const placements=blocks.map((block,index)=>{
-  const box=boxes[index],p=document.createElement(block.kind==='heading'?'h3':'p');p.className='azure-paragraph pdf-translated-block';p.dataset.blockIndex=index;
-  Object.assign(p.style,{left:box.x/viewport.width*100+'%',top:box.y/viewport.height*100+'%',width:box.width/viewport.width*100+'%',height:box.height/viewport.height*100+'%'});
+  const box=boxes[index],p=document.createElement(translatedBlockTag(block));p.className='azure-paragraph pdf-translated-block';p.dataset.blockIndex=index;
+  Object.assign(p.style,{left:box.x/viewport.width*100+'%',top:box.y/viewport.height*100+'%',width:box.width/viewport.width*100+'%',height:box.height/viewport.height*100+'%',background:'transparent',fontWeight:p.tagName==='H3'?'600':'350'});
   const shown=displayTranslation(block,blocks[index+1]);if(shown!==block.translated)p.classList.add('reference-label');
   p.textContent=shown||translationPlaceholder(state);paper.append(p);return {p,block,box,index};
  });
@@ -39,8 +40,8 @@ export async function renderPdfTranslation(root,blocks,page,state){
   if(!paper.isConnected||paper.clientWidth===0)return;
   const scale=paper.clientWidth/viewport.width;
   for(const {p,block,box,index} of placements){
-   const minimum=(p.classList.contains('reference-label')?6:block.kind==='heading'?10:box.width<viewport.width*.3?7.5:9)*scale;
-   let size=Math.max(minimum,Math.min(block.kind==='heading'?18:12,block.fontSize)*scale);p.style.fontSize=size+'px';
+   const heading=p.tagName==='H3',minimum=(p.classList.contains('reference-label')?6:heading?10:box.width<viewport.width*.3?7.5:9)*scale;
+   let size=Math.max(minimum,Math.min(heading?18:12,block.fontSize)*scale);p.style.fontSize=size+'px';
    while((p.scrollHeight>p.clientHeight+1||p.scrollWidth>p.clientWidth+1)&&size>minimum){size-=.25;p.style.fontSize=Math.max(minimum,size)+'px';}
    // Never discard text: oversized passages remain accessible in a full-text disclosure.
    const needsMore=p.scrollHeight>p.clientHeight+2||p.scrollWidth>p.clientWidth+2;
@@ -60,7 +61,7 @@ export function renderPageTranslation(root,blocks,state){
  const ordered=blocks.map((block,index)=>({block,index})).sort((a,b)=>(b.block.y||0)-(a.block.y||0)||(a.block.x||0)-(b.block.x||0));
  let columns=null;
  for(const {block,index} of ordered){
-  const p=document.createElement(block.kind==='heading'?'h3':'p');p.className='azure-paragraph';p.dataset.blockIndex=index;
+  const p=document.createElement(translatedBlockTag(block));p.className='azure-paragraph';p.dataset.blockIndex=index;
   p.style.fontSize=`${(block.fontScale||1)*14}px`;p.style.marginTop=`${Math.min(32,Math.max(0,(block.gap||0)-4))}px`;
   p.textContent=block.translated||translationPlaceholder(state);
   if(!block.column||block.column==='full'){columns=null;page.append(p);}

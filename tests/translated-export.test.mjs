@@ -22,5 +22,5 @@ test('translated block text is clipped to its assigned rectangle',()=>{
  const steps=[],ctx={fillStyle:'',save(){steps.push('save');},restore(){steps.push('restore');},beginPath(){steps.push('begin');},rect(...args){steps.push(['rect',...args]);},clip(){steps.push('clip');},fillRect(...args){steps.push(['fillRect',...args]);}};
  const element={getBoundingClientRect:()=>({left:20,top:30,width:60,height:40})};
  paintTranslatedBlock(ctx,element,{left:10,top:15},()=>{steps.push('text');assert.ok(steps.includes('clip'));assert.ok(!steps.includes('restore'));});
- assert.deepEqual(steps,['save','begin',['rect',10,15,60,40],'clip',['fillRect',10,15,60,40],'text','restore']);
+ assert.deepEqual(steps,['save','begin',['rect',10,15,60,40],'clip','text','restore']);
 });

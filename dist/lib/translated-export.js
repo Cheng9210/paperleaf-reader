@@ -1,4 +1,4 @@
-import {renderPdfTranslation} from './translation-layout.js';
+import {renderPdfTranslation} from './translation-layout.js?v=20261111-artwork-1';
 
 const hasTranslation=record=>record?.done&&record.blocks.every(block=>typeof block.translated==='string'&&block.translated.trim());
 
@@ -21,7 +21,7 @@ function drawTextLines(ctx,element,paperRect){
 export function paintTranslatedBlock(ctx,element,paperRect,paintText=drawTextLines){
  const rect=element.getBoundingClientRect(),x=rect.left-paperRect.left,y=rect.top-paperRect.top;
  ctx.save();ctx.beginPath();ctx.rect(x,y,rect.width,rect.height);ctx.clip();
- ctx.fillStyle='#fff';ctx.fillRect(x,y,rect.width,rect.height);paintText(ctx,element,paperRect);ctx.restore();
+ paintText(ctx,element,paperRect);ctx.restore();
 }
 
 export async function renderTranslatedPage(page,record){

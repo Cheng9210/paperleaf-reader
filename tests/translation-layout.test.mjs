@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {extractPageBlocks,selectionMatch} from '../dist/lib/pdf-text.js';
 import {sentenceUnits,joinSentenceTranslations} from '../dist/lib/sentences.js';
+import {translatedBlockTag} from '../dist/lib/translation-layout.js';
 const item=(str,x,y,width=220,height=12)=>({str,width,height,transform:[height,0,0,height,x,y]});
 test('keeps a spanning title, two columns, and paragraph breaks',()=>{
  const blocks=extractPageBlocks({items:[item('Paper title',40,760,500,22),item('Left first line.',40,700),item('Continued line.',40,685),item('New paragraph.',55,655,205),item('Right column.',320,700),item('Next line.',320,685)]});
@@ -42,4 +43,9 @@ test('small reference type does not turn the main column into headings',()=>{
   item('Another main paragraph.',160,655,280,9),item('More ordinary prose.',160,642,280,9)
  ]};
  const blocks=extractPageBlocks(content);assert.equal(blocks.filter(b=>b.column==='right').every(b=>b.kind==='paragraph'),true);
+});
+
+test('long prose remains body text when saved metadata labels it a heading',()=>{
+ assert.equal(translatedBlockTag({kind:'heading',text:'A section of ordinary academic prose. '.repeat(8)}),'p');
+ assert.equal(translatedBlockTag({kind:'heading',text:'2 Research directions'}),'h3');
 });

@@ -1,6 +1,6 @@
 import {extractPageBlocks,selectionMatch} from './pdf-text.js';
 import {TranslationStore} from './translation-store.js';
-import {renderPdfTranslation,highlightSourceSentences} from './translation-layout.js?v=20261110-paper-1';
+import {renderPdfTranslation,highlightSourceSentences} from './translation-layout.js?v=20261111-artwork-1';
 import {untranslatedEnglish} from './translation-quality.js';
 import {displayTranslation} from './reference-display.js';
 import {renderTranslation,alignTranslation} from './translation.js';
