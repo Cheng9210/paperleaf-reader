@@ -1,0 +1,84 @@
+/* Quiet charcoal controls inspired by the supplied reference image. */
+:root{
+ --matte-surface:rgba(255,255,255,.055);
+ --matte-hover:rgba(255,255,255,.11);
+ --matte-edge:rgba(255,255,255,.11);
+ --matte-text:#e1e2e2;
+ --matte-muted:#a8aaac;
+}
+.compact-header,.reader-toolbar{
+ background:rgba(24,26,28,.92);
+ border-bottom:1px solid rgba(255,255,255,.075);
+ -webkit-backdrop-filter:blur(18px) saturate(110%);
+ backdrop-filter:blur(18px) saturate(110%);
+}
+.compact-header{color:var(--matte-text)}
+.reader-toolbar{gap:8px;color:var(--matte-text)}
+.compact-brand{color:#ededeb}
+#document-title{color:#e6e7e6;font-weight:500}
+.header-actions{gap:6px}
+.header-actions .button.quiet{
+ border:1px solid var(--matte-edge);
+ border-radius:999px;
+ background:var(--matte-surface);
+ color:var(--matte-text);
+ padding-inline:12px;
+ -webkit-backdrop-filter:blur(14px);
+ backdrop-filter:blur(14px);
+}
+.header-actions .button.quiet:hover{background:var(--matte-hover);border-color:rgba(255,255,255,.2);color:#fff}
+.count{background:rgba(255,255,255,.12);border-radius:999px;color:#d6d8d8}
+.reader-toolbar .toolbar-group,.reader-toolbar .tool-palette,#reading-mode,.reader-toolbar .translation-actions{
+ min-height:34px;
+ padding:2px 5px;
+ border:1px solid var(--matte-edge);
+ border-radius:999px;
+ background:var(--matte-surface);
+ -webkit-backdrop-filter:blur(14px);
+ backdrop-filter:blur(14px);
+ box-shadow:inset 0 1px rgba(255,255,255,.045);
+}
+.reader-toolbar .icon-button,.reader-toolbar .tool,#reading-mode button,.reader-toolbar #azure-settings{
+ border:1px solid transparent;
+ border-radius:999px;
+ color:var(--matte-muted);
+}
+.reader-toolbar .icon-button:hover,.reader-toolbar .tool:hover,#reading-mode button:hover,.reader-toolbar #azure-settings:hover{
+ background:var(--matte-hover);
+ color:#f3f3f1;
+}
+.reader-toolbar .tool.active,#reading-mode button[aria-pressed="true"]{
+ border-color:rgba(255,255,255,.65);
+ background:rgba(249,249,247,.92);
+ color:#202326;
+ box-shadow:0 2px 8px rgba(0,0,0,.2);
+}
+.reader-toolbar .tool.active:hover,#reading-mode button[aria-pressed="true"]:hover{background:#fff;color:#171a1c}
+#reading-mode{gap:2px;max-width:none}
+#reading-mode button{width:31px;height:28px}
+.reader-toolbar .page-input input,.reader-toolbar .font-size-control input{
+ border:1px solid rgba(255,255,255,.12);
+ border-radius:999px;
+ background:rgba(0,0,0,.21);
+ color:#ededed;
+}
+.reader-toolbar .page-input,.reader-toolbar .font-size-control,.reader-toolbar .zoom-label{color:#ced0d0}
+.reader-toolbar .toolbar-divider{background:rgba(255,255,255,.14);margin-inline:5px}
+.reader-toolbar .translation-actions{gap:2px}
+.reader-toolbar .translation-actions button{border:0;border-radius:999px;background:transparent;color:#d7d9d9;padding:5px 9px}
+.reader-toolbar .translation-actions button:hover{background:var(--matte-hover);color:#fff}
+.reader-toolbar #azure-settings{border-radius:999px}
+.reader-toolbar kbd{background:var(--matte-surface);border-color:var(--matte-edge);border-radius:999px;color:#d9dbdb}
+.pane-heading,.view-toolbar{background:#202224;border-bottom-color:rgba(255,255,255,.075);color:#acafb0}
+.pdf-scroll{background:#17191b}
+#translation-content{background:#17191b}
+.reading-panes>.splitter{background:#141618}
+.notebook{background:#222426;border-color:var(--matte-edge)}
+dialog{background:#252729;border-color:var(--matte-edge)}
+dialog .button.quiet,.notebook .button.quiet{border:1px solid var(--matte-edge);border-radius:999px;background:var(--matte-surface);color:var(--matte-text)}
+dialog .button.quiet:hover,.notebook .button.quiet:hover{background:var(--matte-hover);color:#fff}
+@media(max-width:750px){
+ .reader-toolbar .toolbar-group,.reader-toolbar .tool-palette,#reading-mode,.reader-toolbar .translation-actions{flex:0 0 auto}
+ .header-actions{gap:3px}
+ .header-actions .button.quiet{padding-inline:8px}
+}
