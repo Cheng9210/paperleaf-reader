@@ -10,11 +10,11 @@ export function createReaderServer({root,azureService,geminiService}){
     if(req.headers['x-paperleaf-request']!=='1'||(req.headers.origin&&req.headers.origin!==url.origin))return json(403,{error:'請從本機閱讀網站操作。'});
     if(req.method==='GET'&&url.pathname==='/api/azure/status')return json(200,await azureService.status());
     if(req.method==='GET'&&url.pathname==='/api/gemini/status'&&geminiService)return json(200,await geminiService.status());
-    if(req.method!=='POST'||!['/api/azure/config','/api/translate','/api/gemini/config','/api/gemini/translate'].includes(url.pathname))return json(404,{error:'找不到服務。'});
+    if(req.method!=='POST'||!['/api/azure/config','/api/translate','/api/gemini/config','/api/gemini/translate','/api/gemini/ocr'].includes(url.pathname))return json(404,{error:'找不到服務。'});
     if(!req.headers['content-type']?.startsWith('application/json'))return json(415,{error:'需要 JSON 資料。'});
-    const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>150000)return json(413,{error:'資料過大。'});chunks.push(chunk);}
+    const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>(url.pathname.endsWith('/ocr')?6100000:150000))return json(413,{error:'資料過大。'});chunks.push(chunk);}
     let input;try{input=JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{return json(400,{error:'資料格式錯誤。'});}
-    if(url.pathname.startsWith('/api/gemini/')){if(!geminiService)return json(503,{error:'請重新啟動網站以啟用 Gemini。'});return json(200,await(url.pathname.endsWith('/config')?geminiService.configure(input):geminiService.translate(input)));}
+    if(url.pathname.startsWith('/api/gemini/')){if(!geminiService)return json(503,{error:'請重新啟動網站以啟用 Gemini。'});return json(200,await(url.pathname.endsWith('/config')?geminiService.configure(input):url.pathname.endsWith('/ocr')?geminiService.ocr(input):geminiService.translate(input)));}
     return json(200,await (url.pathname==='/api/translate'?azureService.translate(input):azureService.configure(input)));
    }
    if(req.method!=='GET'&&req.method!=='HEAD')return json(405,{error:'不支援此操作。'});

@@ -46,6 +46,17 @@ test('truncated model output is rejected rather than cached as a translation',as
  const service=createGeminiService({directory:dir,pause:async()=>{},fetchImpl:async()=>new Response(JSON.stringify({candidates:[{finishReason:'MAX_TOKENS',content:{parts:[{text:'{}'}]}}]}))});
  await assert.rejects(service.configure({key:'a'.repeat(39),freeTierConfirmed:true}),e=>e.status===502);assert.equal((await service.status()).configured,false);
 });
+test('local Gemini splits an incomplete response into smaller sentence requests',async t=>{
+ const dir=await mkdtemp(path.join(os.tmpdir(),'paperleaf-gemini-'));t.after(()=>rm(dir,{recursive:true,force:true}));let calls=0;
+ const service=createGeminiService({directory:dir,pause:async()=>{},fetchImpl:async(url,init)=>{
+  calls++;const inputs=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);
+  if(inputs.length>1)return new Response(JSON.stringify({candidates:[{finishReason:'MAX_TOKENS',content:{parts:[{text:'{}'}]}}]}));
+  return new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({results:[{id:0,translated:'譯文。',pairs:[]}]})}]}}]}));
+ }});
+ await service.configure({key:'a'.repeat(39),freeTierConfirmed:true});
+ const {results}=await service.translate({texts:['One sentence. Another sentence.']});
+ assert.equal(results[0].translated,'譯文。譯文。');assert.equal(calls,4);
+});
 test('alignment uses exact occurrences and rejects invented substrings',()=>{
  assert.equal(projectAlignment('Attention and attention','注意力與注意力',[{source:'attention',sourceOccurrence:0,target:'注意力',targetOccurrence:1}]),'14:22-4:6');
  assert.equal(projectAlignment('cat','貓',[{source:'dog',sourceOccurrence:0,target:'貓',targetOccurrence:0}]),'');

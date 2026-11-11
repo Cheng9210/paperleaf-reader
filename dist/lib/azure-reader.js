@@ -1,13 +1,14 @@
 import {extractPageBlocks,selectionMatch} from './pdf-text.js';
 import {TranslationStore} from './translation-store.js';
-import {renderPdfTranslation,highlightSourceSentences} from './translation-layout.js?v=20261109-fullpaper-1';
+import {renderPdfTranslation,highlightSourceSentences} from './translation-layout.js?v=20261110-paper-1';
 import {untranslatedEnglish} from './translation-quality.js';
 import {displayTranslation} from './reference-display.js';
 import {renderTranslation,alignTranslation} from './translation.js';
-import {createBrowserGemini} from './browser-gemini.js?v=20261109-fullpaper-1';
+import {ocrBlocksFromResponse,pageImageForOcr,shouldOcrPage} from './scan-ocr.js';
+import {createBrowserGemini} from './browser-gemini.js?v=20261110-paper-1';
 const $=s=>document.querySelector(s);
 const browserGemini=globalThis.location?.hostname?.endsWith('github.io')?createBrowserGemini():null;
-async function api(url,body){if(browserGemini){if(url.endsWith('/status'))return browserGemini.status();if(url.endsWith('/config'))return browserGemini.configure(body);if(url.endsWith('/translate'))return browserGemini.translate(body);}
+async function api(url,body){if(browserGemini){if(url.endsWith('/status'))return browserGemini.status();if(url.endsWith('/config'))return browserGemini.configure(body);if(url.endsWith('/translate'))return browserGemini.translate(body);if(url.endsWith('/ocr'))return browserGemini.ocr(body);}
  let response;try{response=await fetch(url,{method:body?'POST':'GET',headers:{'X-Paperleaf-Request':'1',...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});}catch{throw Error('無法連接本機翻譯服務，請重新啟動網站。');}let data;try{data=await response.json();}catch{throw Error('請重新啟動網站，讓 Gemini 翻譯服務生效。');}if(!response.ok)throw Error(data.error||'翻譯服務無法使用。');return data;}
 export class AzureReader{
  constructor(){
@@ -15,11 +16,11 @@ export class AzureReader{
   $('#translation-content').addEventListener('scroll',()=>this.scrollChanged(),{passive:true});
   $('#azure-settings').onclick=()=>this.settings();$('#translate-start').onclick=()=>this.running?this.pause():this.start();$('#translation-pending-action').onclick=()=>this.start();
   $('#azure-close').onclick=()=>$('#azure-dialog').close();
-  $('#azure-form').onsubmit=async e=>{e.preventDefault();const button=$('#azure-save');button.disabled=true;$('#azure-message').textContent='正在驗證金鑰…';try{this.status=await api('/api/gemini/config',{key:$('#azure-key').value,freeTierConfirmed:$('#azure-f0').checked});$('#azure-key').value='';this.error='';$('#azure-dialog').close();this.showPage(this.page);if(this.doc&&!this.demo&&!this.revealed)void this.start();}catch(error){$('#azure-message').textContent=error.message;}finally{button.disabled=false;}};
+  $('#azure-form').onsubmit=async e=>{e.preventDefault();const button=$('#azure-save');button.disabled=true;$('#azure-message').textContent='正在驗證金鑰…';try{this.status=await api('/api/gemini/config',{key:$('#azure-key').value,freeTierConfirmed:$('#azure-f0').checked});$('#azure-key').value='';this.error='';$('#azure-dialog').close();this.showPage(this.page);}catch(error){$('#azure-message').textContent=error.message;}finally{button.disabled=false;}};
   this.refresh();
  }
  async refresh(){try{this.status=await api('/api/gemini/status');}catch(e){this.error=e.message;}if(this.doc)this.showPage(this.page);}
- open(doc,key,demo){clearTimeout(this.zoomTimer);this.zoomPreview=null;this.generation++;this.running=false;this.workerGeneration=null;this.doc=doc;this.key=key;this.demo=demo;this.enabled=false;this.revealed=!!demo;this.records=new Map();this.selection=null;this.error='';this.page=1;this.zoom=1;this.committedZoom=1;this.storageWarning='';this.controls();const generation=this.generation;
+ open(doc,key,demo){clearTimeout(this.zoomTimer);this.zoomPreview=null;this.generation++;this.running=false;this.workerGeneration=null;this.doc=doc;this.key=key;this.demo=demo;this.consented=false;this.enabled=false;this.revealed=!!demo;this.records=new Map();this.selection=null;this.error='';this.page=1;this.zoom=1;this.committedZoom=1;this.storageWarning='';this.controls();const generation=this.generation;
  this.restoration=(async()=>{const records=await this.store.load(key);if(generation!==this.generation)return;this.records=records;this.enabled=records.size>0;if(!this.store.persistent)this.storageWarning='瀏覽器無法儲存進度；關閉後可能遺失。';this.showPage(this.page);})();return this.restoration;}
  controls(){
   const total=this.doc?.numPages||0,done=[...this.records.values()].filter(x=>x.done).length,complete=!!total&&done===total;
@@ -27,7 +28,7 @@ export class AzureReader{
   const start=$('#translate-start');start.textContent=this.running?'暫停':complete?'翻譯完成':this.enabled?'繼續翻譯':'翻譯全文';start.disabled=complete;start.hidden=complete;start.title=`已完成 ${done} / ${total} 頁`;
   const progress=$('#translation-progress');if(progress){progress.textContent=(this.error?'翻譯暫停 · ':this.running?'翻譯中 · ':'')+'已完成 '+done+' / '+total+' 頁 · '+[...this.records.values()].reduce((n,r)=>n+r.blocks.filter(b=>b.translated!==undefined).length,0)+' 段'+(this.storageWarning?' · '+this.storageWarning:'')+(this.error?' · '+this.error:'');progress.hidden=complete&&!this.storageWarning&&!this.error;}
   for(const selector of ['#translation-progress-bar','#translation-pending-bar']){const bar=$(selector);if(bar){bar.max=total||1;bar.value=done;bar.hidden=selector==='#translation-progress-bar'&&(this.demo||complete||!total);}}
-  const pending=$('#translation-pending');if(pending){pending.hidden=this.revealed;$('#translation-pending-label').textContent=this.error?'翻譯已暫停':this.running?'正在翻譯整篇論文':'準備翻譯整篇論文';$('#translation-pending-count').textContent=`已完成 ${done} / ${total} 頁（${total?Math.round(done/total*100):0}%）`;const error=$('#translation-pending-error');error.textContent=this.error||'';error.hidden=!this.error;const action=$('#translation-pending-action');action.hidden=this.running||complete;action.textContent=this.status?.configured?'繼續翻譯':'設定 Gemini 翻譯';}
+  const pending=$('#translation-pending');if(pending){pending.hidden=this.revealed;$('#translation-pending-label').textContent=this.error?'翻譯已暫停':this.running?'正在翻譯整篇論文':'準備翻譯整篇論文';$('#translation-pending-count').textContent=`已完成 ${done} / ${total} 頁（${total?Math.round(done/total*100):0}%）`;const error=$('#translation-pending-error');error.textContent=this.error||'';error.hidden=!this.error;const action=$('#translation-pending-action');action.hidden=this.running||complete;action.textContent=this.status?.configured?(this.enabled?'繼續翻譯':'開始翻譯'):'設定 Gemini 翻譯';}
  }
  pause(){this.running=false;this.showPage(this.page);}
  async settings(){await this.refresh();$('#azure-message').textContent=this.status?.configured?`金鑰已儲存在本機，無需重填（${this.status.model}）。免費額度以 Google AI Studio 專案顯示為準。`:(this.error||'尚未連線。請填入 Gemini Free Tier 專案的 API 金鑰。');$('#azure-key').placeholder=this.status?.configured?'已儲存；僅更換金鑰時填寫':'貼上 Gemini API 金鑰';$('#azure-dialog').showModal();}
@@ -80,11 +81,11 @@ export class AzureReader{
  async preparePage(n){
  const generation=this.generation,doc=this.doc;let record=this.records.get(n);if(record?.pageProxy)return record;
  const page=await doc.getPage(n);if(generation!==this.generation)return null;
- if(!record){const content=await page.getTextContent();if(generation!==this.generation)return null;record=this.records.get(n)||{blocks:extractPageBlocks(content),done:false};const viewport=page.getViewport({scale:1});record.width=viewport.width;record.height=viewport.height;this.records.set(n,record);}
+ if(!record){const content=await page.getTextContent();if(generation!==this.generation)return null;const viewport=page.getViewport({scale:1});let blocks=extractPageBlocks(content);if(shouldOcrPage(blocks,viewport)&&this.consented&&!this.demo){const image=await pageImageForOcr(page);const result=await api('/api/gemini/ocr',{image});if(generation!==this.generation)return null;blocks=ocrBlocksFromResponse(result,viewport.width,viewport.height);if(!blocks.length)throw Error(`第 ${n} 頁未辨識到文字，請檢查掃描品質。`);}record=this.records.get(n)||{blocks,done:false};record.width=viewport.width;record.height=viewport.height;this.records.set(n,record);}
  record.pageProxy=page;return record;
  }
  async persist(generation){if(generation!==this.generation||!this.store)return;const saved=await this.store.save(this.key,this.records);if(generation!==this.generation)return;if(!saved)this.storageWarning='無法儲存進度；請保留此分頁，避免遺失譯文。';}
- async start(){const requestedGeneration=this.generation;if(this.restoration)await this.restoration;if(requestedGeneration!==this.generation||!this.doc||this.running)return;if(this.workerGeneration===this.generation){this.running=true;this.controls();return;}if(!this.status?.configured)return this.settings();this.running=true;this.enabled=true;this.error='';const generation=this.generation,doc=this.doc;this.workerGeneration=generation;this.showPage(this.page);
+ async start(){const requestedGeneration=this.generation;if(this.restoration)await this.restoration;if(requestedGeneration!==this.generation||!this.doc||this.running)return;if(this.workerGeneration===this.generation){this.running=true;this.controls();return;}if(!this.status?.configured)return this.settings();if(!this.consented){const approved=this.confirmDocument?await this.confirmDocument():true;if(!approved||requestedGeneration!==this.generation)return;this.consented=true;}this.running=true;this.enabled=true;this.error='';const generation=this.generation,doc=this.doc;this.workerGeneration=generation;this.showPage(this.page);
   try{while(this.running&&generation===this.generation){const n=Array.from({length:doc.numPages},(_,i)=>i+1).find(p=>!this.records.get(p)?.done);if(!n)break;
     let record=this.records.get(n);if(!record)record=await this.preparePage(n);if(!record||generation!==this.generation)return;
     const pending=record.blocks.filter(b=>b.translated===undefined);while(pending.length&&this.running&&generation===this.generation){const batch=[];let size=0;while(pending.length&&batch.length<20&&(batch.length===0||size+pending[0].text.length<=3500)){const b=pending.shift();batch.push(b);size+=b.text.length;}const response=await api('/api/gemini/translate',{texts:batch.map(b=>b.text)});if(generation!==this.generation)return;if(!Array.isArray(response.results)||response.results.length!==batch.length||response.results.some((x,i)=>typeof x.translated!=='string'||untranslatedEnglish(batch[i].text,x.translated)))throw Error('翻譯回應仍是英文，請繼續翻譯重試。');batch.forEach((b,i)=>Object.assign(b,response.results[i]));record.done=record.blocks.every(b=>b.translated!==undefined);await this.persist(generation);if(generation!==this.generation)return;this.controls();if(this.page===n)this.showPage(n);}

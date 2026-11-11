@@ -1,4 +1,4 @@
-import {readingBlockRects,sourceTextRect} from './page-geometry.js';
+import {readingBlockRects,pageBlockRect,sourceTextRect} from './page-geometry.js';
 import {displayTranslation} from './reference-display.js';
 export function translationPlaceholder({running=false,error=''}={}){return error?'尚未翻譯':running?'等待翻譯…':'尚未翻譯（已暫停）';}
 export function createInlineDisclosure(index,box,viewport,text){
@@ -52,7 +52,7 @@ export async function renderPdfTranslation(root,blocks,page,state){
   }
  }
  root.onwheel=e=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();const scroller=root.parentElement?.id==='translation-content'?root.parentElement:root,zoom=(state.zoom||1)*Math.exp(-e.deltaY*.002);state.previewZoom(zoom,e.clientX,e.clientY,paper,scroller);};
- try{const art=await pageArtwork(page);if(!paper.isConnected)return;canvas.width=art.width;canvas.height=art.height;canvas.getContext('2d').drawImage(art,0,0);}catch{if(paper.isConnected){const note=document.createElement('p');note.className='translation-empty';note.textContent='本頁圖片載入失敗，請切換頁面重試。';root.prepend(note);}}
+ try{const art=await pageArtwork(page);if(!paper.isConnected)return;canvas.width=art.width;canvas.height=art.height;const ctx=canvas.getContext('2d');ctx.drawImage(art,0,0);ctx.fillStyle='#fff';for(const block of blocks.filter(b=>b.ocr)){const box=pageBlockRect(block,viewport),sx=art.width/viewport.width,sy=art.height/viewport.height;ctx.fillRect(Math.max(0,(box.x-2)*sx),Math.max(0,(box.y-2)*sy),Math.min(art.width-box.x*sx,(box.width+4)*sx),Math.min(art.height-box.y*sy,(box.height+4)*sy));}}catch{if(paper.isConnected){const note=document.createElement('p');note.className='translation-empty';note.textContent='本頁圖片載入失敗，請切換頁面重試。';root.prepend(note);}}
  await document.fonts.ready;if(paper.isConnected)fit();
 }
 export function renderPageTranslation(root,blocks,state){

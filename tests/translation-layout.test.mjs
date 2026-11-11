@@ -34,3 +34,12 @@ test('narrow references sidebar keeps its original proportion',()=>{
  assert.equal(blocks[0].column,'left');assert.equal(blocks.at(-1).column,'right');
  assert.ok(blocks[0].columnRatio<.35);
 });
+
+test('small reference type does not turn the main column into headings',()=>{
+ const content={items:[
+  item('1 Reference author',40,700,100,6),item('Reference title and details',40,690,100,6),item('More reference details',40,680,100,6),item('2 Another reference',40,660,100,6),item('Another reference title',40,650,100,6),item('Reference page details',40,640,100,6),
+  item('Main paragraph starts here.',160,700,280,9),item('It continues normally.',160,687,280,9),
+  item('Another main paragraph.',160,655,280,9),item('More ordinary prose.',160,642,280,9)
+ ]};
+ const blocks=extractPageBlocks(content);assert.equal(blocks.filter(b=>b.column==='right').every(b=>b.kind==='paragraph'),true);
+});

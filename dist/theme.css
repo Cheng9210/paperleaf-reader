@@ -58,7 +58,7 @@ dialog{background:#282a2f;color:#ecedf2;border-color:#ffffff20;box-shadow:0 24px
 #reading-mode button[aria-pressed="true"]{background:#505b70;color:#fff;box-shadow:0 1px 4px #0003}
 #reading-mode svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .translated-pdf-page{min-width:0}
-.translated-pdf-page .pdf-translated-block{font-family:'Paperleaf Noto Sans TC','Noto Sans TC',sans-serif;line-height:1.65;letter-spacing:.025em;word-break:normal;line-break:strict;font-weight:400;-webkit-font-smoothing:antialiased}
+.translated-pdf-page .pdf-translated-block{font-family:'Paperleaf Noto Sans TC','Noto Sans TC',sans-serif;line-height:1.65;letter-spacing:.025em;word-break:normal;line-break:strict;font-weight:350;-webkit-font-smoothing:antialiased}
 .translated-pdf-page h3.pdf-translated-block{font-weight:600;line-height:1.35;letter-spacing:.015em}
 .translation-overflow p{font-size:16px;line-height:1.85;letter-spacing:.025em}
 .translation-page-slot{display:block;min-width:0;margin-bottom:18px;position:relative}

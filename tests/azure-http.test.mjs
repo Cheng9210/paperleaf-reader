@@ -17,3 +17,9 @@ test('local API rejects cross-origin calls and never serves private configuratio
  assert.equal((await fetch(base+'/.local/azure.json')).status,403);
  assert.equal((await fetch(base+'/api/translate',{method:'POST',headers:{'X-Paperleaf-Request':'1','Content-Type':'application/json'},body:'invalid'})).status,400);
 });
+test('local scan OCR route forwards a consented page image',async t=>{
+ let received;const server=createReaderServer({root:path.resolve('dist'),azureService:{},geminiService:{ocr:async input=>{received=input;return{blocks:[{text:'Title',box:[0,0,300,50],kind:'heading'}]};}}});
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>server.close(r)));const base=`http://127.0.0.1:${server.address().port}`;
+ const response=await fetch(base+'/api/gemini/ocr',{method:'POST',headers:{'X-Paperleaf-Request':'1','Content-Type':'application/json'},body:JSON.stringify({image:'YWJj'})});
+ assert.equal(response.status,200);assert.deepEqual(received,{image:'YWJj'});assert.equal((await response.json()).blocks[0].text,'Title');
+});

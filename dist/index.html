@@ -4,7 +4,7 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="雙欄論文閱讀、連續捲動、閱讀筆記與 PDF 註記。"><title>Paperleaf · 論文閱讀室</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%233b6154'/%3E%3Cpath d='M9 8h10a5 5 0 0 1 0 10h-6v7H9zm4 4v6l9-6' fill='%23f3f1e8'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="./vendor/pdf_viewer.css"><link rel="stylesheet" href="./styles.css"><link rel="stylesheet" href="./reader.css"><link rel="stylesheet" href="./theme.css?v=20261109-fullpaper-1">
+  <link rel="stylesheet" href="./vendor/pdf_viewer.css"><link rel="stylesheet" href="./styles.css"><link rel="stylesheet" href="./reader.css"><link rel="stylesheet" href="./theme.css?v=20261110-paper-1">
 </head>
 <body>
   <header class="compact-header">
@@ -13,7 +13,7 @@
     <div class="header-actions">
       <button class="button quiet" data-action="upload" aria-label="匯入 PDF"><span data-icon="upload"></span><span>匯入 PDF</span></button>
       <button class="button quiet" id="notes-toggle" data-action="notes" aria-label="閱讀筆記" aria-expanded="false"><span data-icon="notebook"></span><span>筆記</span><span class="count" id="notes-count">0</span></button>
-      <button class="button quiet" data-action="export" aria-label="下載註記 PDF"><span data-icon="download"></span><span>下載</span></button>
+      <button class="button quiet" data-action="export" aria-label="下載 PDF"><span data-icon="download"></span><span>下載</span></button>
     </div>
   </header>
   <main class="app-shell">
@@ -61,9 +61,10 @@
     </div>
   </main>
   <input type="file" id="pdf-input" accept="application/pdf,.pdf" hidden>
-  <dialog id="export-dialog"><div class="dialog-heading"><span data-icon="download"></span><h2>下載註記 PDF</h2></div><p>保留原文、螢光筆顏色與頁面文字。</p><div class="export-info">註記會固定在 PDF 頁面上。下載後無法在其他閱讀器中單獨編輯；完整筆記可另外匯出為 Markdown。</div><div class="dialog-actions"><button class="button quiet" data-action="cancel-export">取消</button><button class="button primary" data-action="confirm-export" id="confirm-export">下載</button></div></dialog>
+  <dialog id="export-dialog"><div class="dialog-heading"><span data-icon="download"></span><h2>下載 PDF</h2></div><p>選擇要下載的版本。</p><div class="export-info">註記版保留原文與註記。中文版需完成全文翻譯，保留原圖和頁面位置；因版面以影像輸出，文字目前無法在 PDF 中選取。較長段落的全文會附在續頁。</div><div class="dialog-actions"><button class="button quiet" data-action="cancel-export">取消</button><button class="button quiet" data-action="confirm-export" id="confirm-export">下載註記版</button><button class="button primary" data-action="export-translated" id="export-translated">下載中文版</button></div></dialog>
+  <dialog id="translation-consent"><h2>翻譯這篇論文</h2><p id="consent-document-name"></p><p>開始後，網站會把這篇論文擷取的英文文字傳送至 Google Gemini。頁面可擷取文字不足時，會傳送該頁圖片供辨識；即使 PDF 含有少量文字也可能發生。譯文保存在這個瀏覽器。</p><div class="dialog-actions"><button id="consent-cancel" type="button" class="button quiet">取消</button><button id="consent-approve" type="button" class="button primary">同意並開始</button></div></dialog>
   <dialog id="azure-dialog"><form id="azure-form">
-    <h2>Gemini 翻譯設定</h2><p>使用 Gemini 3.5 Flash-Lite（3.1 服務異常時的備援）。僅傳送論文文字；金鑰及翻譯快取存放在本機。</p>
+    <h2>Gemini 翻譯設定</h2><p>使用 Gemini 3.5 Flash-Lite（3.1 服務異常時的備援）。翻譯時傳送論文文字；可擷取文字不足的頁面還會傳送圖片。金鑰及翻譯快取存放在本機。</p>
     <label>金鑰<input id="azure-key" type="password" required autocomplete="off" placeholder="貼上 Gemini API 金鑰"></label>
     <label class="azure-confirm"><input id="azure-f0" type="checkbox" required>我已確認此金鑰的 Google AI Studio 專案為 Free Tier，未啟用付費帳務</label>
     <p class="azure-footnote">免費額度用完會暫停。實際計費取決於金鑰所屬專案，網站無法辨識其帳務層級。免費層內容可能用於改善 Google 產品；請勿提交機密資料。</p>
@@ -71,5 +72,5 @@
     <p id="azure-message" role="status"></p><div class="dialog-actions"><button id="azure-close" type="button" class="button quiet">關閉</button><button id="azure-save" type="submit" class="button primary">儲存並測試連線</button></div>
   </form></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script src="./vendor/pdf-lib.min.js"></script><script type="module" src="./app.js?v=20261109-fullpaper-1"></script>
+  <script src="./vendor/pdf-lib.min.js"></script><script type="module" src="./app.js?v=20261110-paper-1"></script>
 </body></html>

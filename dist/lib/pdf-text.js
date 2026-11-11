@@ -31,6 +31,8 @@ export function extractPageBlocks(content){
   const score=Math.min(a.length,b.length);if(score>=2&&score>best){best=score;split=candidate;}
  }
  for(const l of lines)l.column=split===null?'full':l.x>=split-body?'right':l.right<=split+1?'left':'full';
+ const columnSizes=Object.fromEntries(['full','left','right'].map(column=>{const values=lines.filter(line=>line.column===column).map(line=>line.fontSize).sort((a,b)=>a-b);return[column,values];}));
+ const columnBody=column=>{const values=columnSizes[column],fallback=Math.max(columnSizes.left[Math.floor(columnSizes.left.length/2)]||0,columnSizes.right[Math.floor(columnSizes.right.length/2)]||0,body);return column==='full'&&split!==null&&values.length<3?fallback:values[Math.floor(values.length/2)]||body;};
  const blocks=[];let block=null,last=null;
  for(const l of lines){
   const same=block&&block.column===l.column&&last.y-l.y>0&&last.y-l.y<Math.max(l.fontSize,last.fontSize)*1.75&&(Math.abs(l.x-block.x)<body*.8||(block.dropCap&&l.x>=block.x&&l.x<=block.x+block.capWidth+body*2))&&Math.abs(l.fontSize-last.fontSize)<body*.15;
@@ -47,7 +49,7 @@ export function extractPageBlocks(content){
   for(let start=0;start<b.text.length;){
    let end=Math.min(b.text.length,start+3000);if(end<b.text.length&&/[\uD800-\uDBFF]/.test(b.text[end-1]))end--;
    const spans=b.spans.filter(s=>s.end>start&&s.start<end).map(s=>({itemIndex:s.itemIndex,start:Math.max(s.start,start)-start,end:Math.min(s.end,end)-start,itemOffset:(s.itemOffset||0)+Math.max(0,start-s.start)}));
-   result.push({...b,text:b.text.slice(start,end),spans,kind:b.fontSize>body*1.15?'heading':'paragraph',fontScale:Math.max(.8,Math.min(1.6,b.fontSize/body)),columnRatio:split===null?.5:(split-left)/(Math.max(...lines.map(l=>l.right))-left)});start=end;
+   const localBody=columnBody(b.column),headingEligible=!/^[a-z]/.test(b.text)&&!/^\d+$/.test(b.text.trim())&&!(b.column==='left'&&/^\d+\s/.test(b.text));result.push({...b,text:b.text.slice(start,end),spans,kind:headingEligible&&b.fontSize>localBody*1.15?'heading':'paragraph',fontScale:Math.max(.8,Math.min(1.6,b.fontSize/localBody)),columnRatio:split===null?.5:(split-left)/(Math.max(...lines.map(l=>l.right))-left)});start=end;
   }
  }
  return result;
