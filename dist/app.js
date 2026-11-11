@@ -1,5 +1,5 @@
 import {initReadingModes} from './lib/reading-modes.js';
-import {AzureReader} from './lib/azure-reader.js?v=20261110-paper-1';
+import {AzureReader} from './lib/azure-reader.js?v=20261111-english-retry-1';
 import {selectionParts} from './lib/pdf-text.js';
 import {hydrateIcons} from './lib/icons.js';
 import {loadPdf} from './lib/pdf.js';

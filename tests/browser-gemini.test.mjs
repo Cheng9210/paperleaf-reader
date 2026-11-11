@@ -63,12 +63,31 @@ test('changing the API key always checks the new key instead of a cached respons
  assert.equal(calls,2);assert.equal((await client.status()).configured,true);
 });
 
-test('rejected English output is requested again on resume',async()=>{
+test('English-only output is retried automatically with a stronger translation instruction',async()=>{
  let calls=0;const client=createBrowserGemini({storage:{getItem:()=> 'a'.repeat(39)},pause:async()=>{},fetchImpl:async(url,init)=>{
   const inputs=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);calls++;
+  if(calls===2)assert.match(JSON.parse(init.body).systemInstruction.parts[0].text,/previous response/i);
   return new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({results:inputs.map(({id,text})=>({id,translated:calls===1?text:'這篇論文描述設計靈感來源。',pairs:[]}))})}]}}]}));
  }});
  const input={texts:['This paper describes the sources of inspiration in design.']};
- await assert.rejects(client.translate(input),/未翻譯/);
  assert.equal((await client.translate(input)).results[0].translated,'這篇論文描述設計靈感來源。');assert.equal(calls,2);
+});
+
+test('persistent English-only output stops after one focused retry',async()=>{
+ let calls=0;const client=createBrowserGemini({storage:{getItem:()=> 'a'.repeat(39)},pause:async()=>{},fetchImpl:async(url,init)=>{
+  calls++;const inputs=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);
+  return new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({results:inputs.map(({id,text})=>({id,translated:text,pairs:[]}))})}]}}]}));
+ }});
+ await assert.rejects(client.translate({texts:['This paper describes the sources of inspiration in design.']}),/未翻譯/);assert.equal(calls,2);
+});
+
+test('focused retry preserves other translated paragraphs in the batch',async()=>{
+ const calls=[],client=createBrowserGemini({storage:{getItem:()=> 'a'.repeat(39)},pause:async()=>{},fetchImpl:async(url,init)=>{
+  const body=JSON.parse(init.body),inputs=JSON.parse(body.contents[0].parts[0].text);calls.push(inputs.map(item=>item.text));
+  const strict=/previous response/i.test(body.systemInstruction.parts[0].text);
+  return new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({results:inputs.map(({id,text})=>({id,translated:text.startsWith('This paper')?(strict?'這篇論文討論設計靈感。':text):'蓮花自行車的設計。',pairs:[]}))})}]}}]}));
+ }});
+ const texts=['This paper describes the sources of inspiration in design.','The Lotus bicycle design.'];
+ assert.deepEqual((await client.translate({texts})).results.map(item=>item.translated),['這篇論文討論設計靈感。','蓮花自行車的設計。']);
+ assert.deepEqual(calls,[texts,[texts[0]]]);
 });

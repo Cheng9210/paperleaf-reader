@@ -5,7 +5,7 @@ import {untranslatedEnglish} from './translation-quality.js';
 import {displayTranslation} from './reference-display.js';
 import {renderTranslation,alignTranslation} from './translation.js';
 import {ocrBlocksFromResponse,pageImageForOcr,shouldOcrPage} from './scan-ocr.js';
-import {createBrowserGemini} from './browser-gemini.js?v=20261110-paper-1';
+import {createBrowserGemini} from './browser-gemini.js?v=20261111-english-retry-1';
 const $=s=>document.querySelector(s);
 const browserGemini=globalThis.location?.hostname?.endsWith('github.io')?createBrowserGemini():null;
 async function api(url,body){if(browserGemini){if(url.endsWith('/status'))return browserGemini.status();if(url.endsWith('/config'))return browserGemini.configure(body);if(url.endsWith('/translate'))return browserGemini.translate(body);if(url.endsWith('/ocr'))return browserGemini.ocr(body);}
