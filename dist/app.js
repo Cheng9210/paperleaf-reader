@@ -4,6 +4,7 @@ import {selectionParts} from './lib/pdf-text.js';
 import {hydrateIcons} from './lib/icons.js';
 import {loadPdf} from './lib/pdf.js';
 import {ContinuousPdf} from './lib/continuous-pdf.js';
+import {mappedScrollTop} from './lib/scroll-sync.js';
 import {clamp,normalizedRect,shouldSpeak,documentKey,notesToMarkdown,cleanSelectionRects,migrateAnnotations,moveAnnotation,textRectAt} from './lib/core.js';
 import {readDocument,saveDocument} from './lib/storage.js';
 import {renderNotebook,noteCount} from './lib/notes.js';
@@ -22,11 +23,30 @@ function remember(){state.history.push(structuredClone(state.annotations));if(st
 function changed(){persist();drawAll();}
 function selectAnnotation(a){state.selected=a?.id||null;document.querySelectorAll('[data-annotation]').forEach(el=>el.classList.toggle('selected',el.dataset.annotation===state.selected));if(a?.kind==='text'){$('#text-color').value=a.color;$('#font-size').value=a.fontSize;}if(a?.kind==='highlight'){$('#highlight-color').value=a.color;$('#highlight-indicator').style.background=a.color;}}
 function setTool(tool){state.tool=tool;document.querySelectorAll('[data-tool]').forEach(el=>{el.classList.toggle('active',el.dataset.tool===tool);el.setAttribute('aria-pressed',el.dataset.tool===tool);});$('#pdf-pages').classList.toggle('text-mode',tool==='text');}
-function pageChanged(page){if(state.page===page&&$('#translation-content').childElementCount)return;state.page=page;$('#page-input').value=page;$('#translation-page').textContent=`第 ${page} 頁`;translator.showPage(page);$('#translation-content').scrollTop=0;navigation();}
+function pageChanged(page){if(state.page===page&&$('#translation-content').childElementCount)return;state.page=page;$('#page-input').value=page;$('#translation-page').textContent=`第 ${page} 頁`;const slot=$(`#translation-content .translation-page-slot[data-page="${page}"]`);if(translator.revealed&&slot)translator.page=page;else translator.showPage(page);navigation();}
 const translator=new AzureReader();
 translator.confirmDocument=()=>new Promise(resolve=>{const dialog=$('#translation-consent');$('#consent-document-name').textContent=state.name;const finish=approved=>{dialog.close();resolve(approved);};$('#consent-cancel').onclick=()=>finish(false);$('#consent-approve').onclick=()=>finish(true);dialog.oncancel=e=>{e.preventDefault();finish(false);};dialog.showModal();});
 const viewer=new ContinuousPdf($('#pdf-scroll'),page=>{if(!$('#original-pane').hidden)pageChanged(page);},drawPage);
-translator.onPageVisible=page=>{if(!state.doc||state.page===page)return;state.page=page;$('#page-input').value=page;$('#translation-page').textContent=`第 ${page} 頁`;navigation();if(!$('#original-pane').hidden)viewer.go(page);};
+let sourceScrollFrame=0,sourceSyncSerial=0,sourceSyncInProgress=false;
+function syncSourceScroll(){
+  if($('#original-pane').hidden||$('#translation-pane').hidden||!translator.revealed||!viewer.pages.length)return;
+  const source=$('#pdf-scroll'),target=$('#translation-content');
+  if(target.hidden||target.clientHeight<1)return;
+  const sourceTop=source.getBoundingClientRect().top+Math.min(140,source.clientHeight*.25);
+  let current=viewer.pages[0];for(const item of viewer.pages)if(item.el.getBoundingClientRect().top<=sourceTop)current=item;
+  pageChanged(current.number);
+  const slot=$(`#translation-content .translation-page-slot[data-page="${current.number}"]`);
+  if(!slot)return;
+  const targetTop=target.getBoundingClientRect().top+Math.min(140,target.clientHeight*.25);
+  const scrollTop=mappedScrollTop(current.el.getBoundingClientRect(),slot.getBoundingClientRect(),sourceTop,targetTop,target.scrollTop);
+  if(Math.abs(target.scrollTop-scrollTop)<1)return;
+  sourceSyncInProgress=true;const serial=++sourceSyncSerial;
+  target.scrollTop=scrollTop;
+  requestAnimationFrame(()=>{if(serial===sourceSyncSerial)sourceSyncInProgress=false;});
+}
+$('#pdf-scroll').addEventListener('scroll',()=>{if(!sourceScrollFrame)sourceScrollFrame=requestAnimationFrame(()=>{sourceScrollFrame=0;syncSourceScroll();});},{passive:true});
+translator.onPageRendered=page=>{if(page===state.page)requestAnimationFrame(syncSourceScroll);};
+translator.onPageVisible=page=>{if(sourceSyncInProgress||!state.doc||state.page===page)return;state.page=page;$('#page-input').value=page;$('#translation-page').textContent=`第 ${page} 頁`;navigation();if(!$('#original-pane').hidden)viewer.go(page);};
 const readingModes=initReadingModes({onChange:()=>{translator.setZoom(translator.zoom||1);if(!$('#original-pane').hidden){viewer.layout(false);viewer.go(state.page);$('#zoom-label').textContent=Math.round(viewer.zoom*100)+'%';}else{$('#zoom-label').textContent=Math.round((translator.zoom||1)*100)+'%';translator.showPage(state.page);}}});
 function goPage(value){const page=clamp(Math.round(Number(value)||1),1,state.doc?.numPages||1);pageChanged(page);if(!$('#original-pane').hidden)viewer.go(page);}
 function navigation(){$('#page-total').textContent=state.doc?.numPages||1;$('#page-input').max=state.doc?.numPages||1;$('[data-action="prev"]').disabled=state.page<=1;$('[data-action="next"]').disabled=state.page>=state.doc?.numPages;}

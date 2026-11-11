@@ -74,7 +74,7 @@ export class AzureReader{
    if(this.restoration)await this.restoration;if(generation!==this.generation||serial!==this.renderSerial)return;
    const record=await this.preparePage(page);if(!record||serial!==this.renderSerial||generation!==this.generation)return;
    const slot=document.createElement('section');slot.className='translation-page-slot';slot.dataset.page=page;root.replaceChildren(slot);root.scrollTop=0;
-   await renderPdfTranslation(slot,record.blocks,record.pageProxy,this);if(serial!==this.renderSerial)return;this.paintSelection();if(!$('#translation-pane').hidden){this.prependPrevious();this.appendNext();}
+   await renderPdfTranslation(slot,record.blocks,record.pageProxy,this);if(serial!==this.renderSerial)return;this.paintSelection();this.onPageRendered?.(page);if(!$('#translation-pane').hidden){this.prependPrevious();this.appendNext();}
    if(this.error||!record.blocks.length){const p=document.createElement('p');p.textContent=this.error||'此頁保留原始圖片；沒有可擷取文字，掃描文字需先 OCR。';p.className='translation-empty';slot.prepend(p);}
   }catch(error){if(generation===this.generation&&serial===this.renderSerial){const p=document.createElement('p');p.className='translation-empty';p.textContent='頁面載入失敗，請切換頁面重試。';root.replaceChildren(p);}}
  }

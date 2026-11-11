@@ -7,13 +7,22 @@
  --matte-muted:#a8aaac;
 }
 .compact-header,.reader-toolbar{
- background:rgba(24,26,28,.92);
+ background:rgba(24,26,28,.78);
  border-bottom:1px solid rgba(255,255,255,.075);
  -webkit-backdrop-filter:blur(18px) saturate(110%);
  backdrop-filter:blur(18px) saturate(110%);
 }
 .compact-header{color:var(--matte-text)}
-.reader-toolbar{gap:8px;color:var(--matte-text)}
+.reader-toolbar{gap:8px;color:var(--matte-text);background:rgba(24,26,28,.7)}
+.app-shell{--paper-overlay:38px}
+.reader-toolbar,.view-toolbar{position:relative;z-index:6;-webkit-backdrop-filter:blur(12px) saturate(105%);backdrop-filter:blur(12px) saturate(105%)}
+.view-toolbar{background:rgba(24,26,28,.72)}
+.app-shell:has(>.view-toolbar:not(:has(#translation-progress[hidden]))){--paper-overlay:64px}
+.workspace{margin-top:calc(-1 * var(--paper-overlay))}
+.reading-panes>.pane{position:relative}
+.reading-panes .pane-heading{position:absolute;top:var(--paper-overlay);left:0;right:0;z-index:2}
+.reading-panes .pdf-scroll{padding-top:calc(var(--paper-overlay) + 41px)}
+.reading-panes .translation-scroll{padding-top:calc(var(--paper-overlay) + 43px)}
 .compact-brand{color:#ededeb}
 #document-title{color:#e6e7e6;font-weight:500}
 .header-actions{gap:6px}
@@ -78,6 +87,10 @@ dialog{background:#252729;border-color:var(--matte-edge)}
 dialog .button.quiet,.notebook .button.quiet{border:1px solid var(--matte-edge);border-radius:999px;background:var(--matte-surface);color:var(--matte-text)}
 dialog .button.quiet:hover,.notebook .button.quiet:hover{background:var(--matte-hover);color:#fff}
 @media(max-width:750px){
+ .app-shell{--paper-overlay:70px}
+ .app-shell:has(>.view-toolbar:not(:has(#translation-progress[hidden]))){--paper-overlay:96px}
+ .reading-panes .pdf-scroll{padding-top:calc(var(--paper-overlay) + 35px)}
+ .reading-panes .translation-scroll{padding-top:calc(var(--paper-overlay) + 43px)}
  .reader-toolbar .toolbar-group,.reader-toolbar .tool-palette,#reading-mode,.reader-toolbar .translation-actions{flex:0 0 auto}
  .header-actions{gap:3px}
  .header-actions .button.quiet{padding-inline:8px}
