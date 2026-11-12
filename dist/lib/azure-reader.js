@@ -53,6 +53,7 @@ export class AzureReader{
    const slot=document.createElement('section');slot.className='translation-page-slot';slot.dataset.page=n;slot.style.aspectRatio=`${record.width||1}/${record.height||1}`;root.prepend(slot);this.sequenceStart=n;
    if(first)root.scrollTop+=first.getBoundingClientRect().top-before;
    await renderPdfTranslation(slot,record.blocks,record.pageProxy,this);
+   this.onPageRendered?.(n);
    if(first&&token===this.sequenceToken)root.scrollTop+=first.getBoundingClientRect().top-before;
   }catch{this.prependFailure=n;
   }finally{if(token===this.sequenceToken){this.prepending=false;this.scrollChanged();}}
@@ -63,6 +64,7 @@ export class AzureReader{
   try{const record=await this.preparePage(n);if(token!==this.sequenceToken||generation!==this.generation||!record)return;
    const slot=document.createElement('section');slot.className='translation-page-slot';slot.dataset.page=n;slot.style.aspectRatio=`${record.width||1}/${record.height||1}`;$('#translation-content').append(slot);this.sequenceEnd=n;
    await renderPdfTranslation(slot,record.blocks,record.pageProxy,this);
+   this.onPageRendered?.(n);
   }catch{this.appendFailure=n;
   }finally{if(token===this.sequenceToken){this.appending=false;this.scrollChanged();}}
  }

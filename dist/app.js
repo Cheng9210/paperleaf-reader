@@ -1,10 +1,10 @@
 import {initReadingModes} from './lib/reading-modes.js';
-import {AzureReader} from './lib/azure-reader.js?v=20261111-artwork-1';
+import {AzureReader} from './lib/azure-reader.js?v=20261112-boundary-1';
 import {selectionParts} from './lib/pdf-text.js';
 import {hydrateIcons} from './lib/icons.js';
 import {loadPdf} from './lib/pdf.js';
 import {ContinuousPdf} from './lib/continuous-pdf.js';
-import {mappedScrollTop} from './lib/scroll-sync.js';
+import {mappedScrollTop} from './lib/scroll-sync.js?v=20261112-boundary-1';
 import {clamp,normalizedRect,shouldSpeak,documentKey,notesToMarkdown,cleanSelectionRects,migrateAnnotations,moveAnnotation,textRectAt} from './lib/core.js';
 import {readDocument,saveDocument} from './lib/storage.js';
 import {renderNotebook,noteCount} from './lib/notes.js';
@@ -38,14 +38,16 @@ function syncSourceScroll(){
   const slot=$(`#translation-content .translation-page-slot[data-page="${current.number}"]`);
   if(!slot)return;
   const targetTop=target.getBoundingClientRect().top+Math.min(140,target.clientHeight*.25);
-  const scrollTop=mappedScrollTop(current.el.getBoundingClientRect(),slot.getBoundingClientRect(),sourceTop,targetTop,target.scrollTop);
+  const next=viewer.pages[current.number],nextSlot=next&&$(`#translation-content .translation-page-slot[data-page="${next.number}"]`);
+  const boundary=nextSlot?{sourceNext:next.el.getBoundingClientRect(),targetNext:nextSlot.getBoundingClientRect(),viewportHeight:source.clientHeight}:null;
+  const scrollTop=mappedScrollTop(current.el.getBoundingClientRect(),slot.getBoundingClientRect(),sourceTop,targetTop,target.scrollTop,boundary);
   if(Math.abs(target.scrollTop-scrollTop)<1)return;
   sourceSyncInProgress=true;const serial=++sourceSyncSerial;
   target.scrollTop=scrollTop;
   requestAnimationFrame(()=>{if(serial===sourceSyncSerial)sourceSyncInProgress=false;});
 }
 $('#pdf-scroll').addEventListener('scroll',()=>{if(!sourceScrollFrame)sourceScrollFrame=requestAnimationFrame(()=>{sourceScrollFrame=0;syncSourceScroll();});},{passive:true});
-translator.onPageRendered=page=>{if(page===state.page)requestAnimationFrame(syncSourceScroll);};
+translator.onPageRendered=()=>requestAnimationFrame(syncSourceScroll);
 translator.onPageVisible=page=>{if(sourceSyncInProgress||!state.doc||state.page===page)return;state.page=page;$('#page-input').value=page;$('#translation-page').textContent=`第 ${page} 頁`;navigation();if(!$('#original-pane').hidden)viewer.go(page);};
 const readingModes=initReadingModes({onChange:()=>{translator.setZoom(translator.zoom||1);if(!$('#original-pane').hidden){viewer.layout(false);viewer.go(state.page);$('#zoom-label').textContent=Math.round(viewer.zoom*100)+'%';}else{$('#zoom-label').textContent=Math.round((translator.zoom||1)*100)+'%';translator.showPage(state.page);}}});
 function goPage(value){const page=clamp(Math.round(Number(value)||1),1,state.doc?.numPages||1);pageChanged(page);if(!$('#original-pane').hidden)viewer.go(page);}
